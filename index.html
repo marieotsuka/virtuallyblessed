@@ -801,7 +801,7 @@ float pnoise(vec3 P, vec3 rep)
   </script>
 <!-- end light flares -->
 
-<script type="x-shader/x-vertex" id="pts_vertexShader">
+<script type="x-shader/x-vertex" id="pts_vertexshader">
 
     attribute float alpha;
 
@@ -813,7 +813,7 @@ float pnoise(vec3 P, vec3 rep)
 
         vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
 
-        gl_PointSize = 1;
+        gl_PointSize = 1.0;
 
         gl_Position = projectionMatrix * mvPosition;
 
@@ -821,7 +821,7 @@ float pnoise(vec3 P, vec3 rep)
 
 </script>
 
-<script type="x-shader/x-fragment" id="pts_fragmentShader">
+<script type="x-shader/x-fragment" id="pts_fragmentshader">
 
     uniform vec3 color;
 
@@ -834,6 +834,9 @@ float pnoise(vec3 P, vec3 rep)
     }
 
 </script>
+
+
+
 
 <script src="scripts/lib/fast-simplex-noise.js"></script>
 <script src="scripts/lib/tween.umd.js"></script>

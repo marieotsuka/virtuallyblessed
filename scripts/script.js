@@ -289,19 +289,58 @@ function createLogo(){
           }
           fillWithPoints(logoPath_geometry, pointCount);
 
+          let logo_vertices = [];
+
           logoPath_geometry.vertices.forEach(function(vertex) {
             vertex.startPoint = vertex.clone();
             vertex.direction = vertex.clone().normalize();
+            logo_vertices.push(vertex.x, vertex.y, vertex.z);
           });
 
+          
           logoPath_geometry.verticesNeedUpdate = true;
 
-          let logo_points = new THREE.Points(logoPath_geometry, new THREE.PointsMaterial({
-            color: 'white',
-            size: 0.008,
-            blending: THREE.AdditiveBlending,
+          const logo_bufferGeometry = new THREE.BufferGeometry().fromGeometry( logoPath_geometry );
+
+          // console.log('lpg', logoPath_geometry);
+
+          // console.log('lpbuff', logo_bufferGeometry);
+
+          // console.log('vertices', logo_vertices);
+
+          logo_bufferGeometry.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(logo_vertices), 3 ) );
+
+          const numVertices = logo_bufferGeometry.attributes.position.count;
+          const alphas = new Float32Array( numVertices * 1 ); // 1 values per vertex
+
+          // console.log('nv',numVertices);
+
+          for( var i = 0; i < numVertices; i ++ ) {
+              // set alpha randomly
+              alphas[ i ] = Math.random();     
+          }
+
+          logo_bufferGeometry.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
+
+          // console.log(logo_bufferGeometry);
+          // var cubeGeometry = new THREE.CubeGeometry( 50, 50, 50, 20, 20, 20 );
+          // var discTexture = THREE.ImageUtils.loadTexture( 'images/disc.png' );
+          
+          // values that are constant for all particles during a draw call
+          let logo_uniforms = {
+              color: { value: new THREE.Color( 'white' ) },
+          };
+                
+          let logo_shaderMaterial = new THREE.ShaderMaterial( 
+          {
+            uniforms: logo_uniforms,
+            vertexShader:   document.getElementById( 'pts_vertexshader' ).textContent,
+            fragmentShader: document.getElementById( 'pts_fragmentshader' ).textContent,
             transparent: true,
-          }));
+          });
+
+
+          let logo_points = new THREE.Points(logo_bufferGeometry, logo_shaderMaterial);
 
 
           vbLogo.add( logo_points );
@@ -393,24 +432,52 @@ function ptInTriangle(p, p0, p1, p2) {
 
 
 function animateLogo(time){
-  
-  let delta = 100000/(time*time);
-  console.log(delta);
+    
 
+  let delta = 100000/(time*time);
+  // console.log(delta);
+  
   for ( let i = 0; i < vbLogo.children.length; i ++ ) {
       const logoPoints = vbLogo.children[ i ];
-       console.log(logoPoints);
+
       if ( logoPoints instanceof THREE.Points ) {
+        // console.log(logoPoints);
 
-          logoPoints.material.opacity = Math.random();
+        let alphas = logoPoints.geometry.attributes.alpha;
+        let count = alphas.count;    
 
-          // logoPoints.rotation.y = Math.random() * 0.01;  
-          logoPoints.geometry.vertices.forEach(v =>{
-            v.y = v.startPoint.y + Math.random() * delta;
-            v.x = v.startPoint.x + Math.random() * delta;
-          }); 
+        let positions = logoPoints.geometry.attributes.position;
+        
+        for( let j = 0; j < count; j ++ ) {
+            // dynamically change alphas
+            alphas.array[j] = Math.random();
+            // positions.array[j] *= .95;
+            // if ( alphas.array[ j ] < 0.01 ) { 
+            //     alphas.array[ j ] = 1.0;
+            // }           
+        }
+        alphas.needsUpdate = true; // important!
+        // positions.needsUpdate = true; // important!
+        // console.log(logoPoints);
 
-          logoPoints.geometry.verticesNeedUpdate = true;
+
+        // logoPoints.geometry.attributes.forEach(v =>{
+        //   v.y = v.startPoint.y + Math.random() * delta;
+        //   v.x = v.startPoint.x + Math.random() * delta;
+        // }); 
+
+        // logoPoints.geometry.verticesNeedUpdate = true;
+
+
+  //         logoPoints.material.opacity = Math.random();
+
+  //         // logoPoints.rotation.y = Math.random() * 0.01;  
+  //         logoPoints.geometry.vertices.forEach(v =>{
+  //           v.y = v.startPoint.y + Math.random() * delta;
+  //           v.x = v.startPoint.x + Math.random() * delta;
+  //         }); 
+
+  //         logoPoints.geometry.verticesNeedUpdate = true;
       }
     }
 
