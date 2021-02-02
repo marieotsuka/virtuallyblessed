@@ -257,7 +257,7 @@ function createLogo(){
   // instantiate a loader
   const loader = new SVGLoader();
 
-  const logoPointCount = 250;
+  const logoPointCount = 200;
   // load a SVG resource
   loader.load(
     // resource URL
@@ -298,8 +298,9 @@ function createLogo(){
 
           let logo_points = new THREE.Points(logoPath_geometry, new THREE.PointsMaterial({
             color: 'white',
-            size: 0.01,
-            opacity: Math.random()
+            size: 0.008,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
           }));
 
 
@@ -314,7 +315,7 @@ function createLogo(){
       vbLogo.scale.multiplyScalar(0.008);
 
       sphereGroup.add( vbLogo );
-    },
+    },      
     // called when loading is in progresses
     function ( xhr ) {
       console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
@@ -392,17 +393,24 @@ function ptInTriangle(p, p0, p1, p2) {
 
 
 function animateLogo(time){
- 
   
+  let delta = 100000/(time*time);
+  console.log(delta);
 
   for ( let i = 0; i < vbLogo.children.length; i ++ ) {
       const logoPoints = vbLogo.children[ i ];
+       console.log(logoPoints);
       if ( logoPoints instanceof THREE.Points ) {
-         console.log(logoPoints);
-          logoPoints.rotation.y = Math.random() * 0.01;  
-          // logoPoints.geometry.vertices.forEach(v =>{
-          //   v.y = v.y+1;
-          // }); 
+
+          logoPoints.material.opacity = Math.random();
+
+          // logoPoints.rotation.y = Math.random() * 0.01;  
+          logoPoints.geometry.vertices.forEach(v =>{
+            v.y = v.startPoint.y + Math.random() * delta;
+            v.x = v.startPoint.x + Math.random() * delta;
+          }); 
+
+          logoPoints.geometry.verticesNeedUpdate = true;
       }
     }
 
@@ -564,8 +572,16 @@ function animateText(t){
 
 }
 function animation() {
-  requestAnimationFrame(animation);
+  // animation.timeScale = 1/5 ; 
+
+  setTimeout( function() {
+
+          requestAnimationFrame(animation);
+
+      }, 1000 / 10 );
+
   
+  // animation.timeScale = 1/5 ; 
 
   let time = Date.now() * 0.003;
   let diff = (Date.now()-start)* 0.01;
@@ -575,7 +591,7 @@ function animation() {
   if (diff > 30){
     // animateText(time)
 
-    animateLogo(Date.now())
+    animateLogo(diff)
   }
   // rotate letters
   
@@ -718,18 +734,18 @@ function mapCalc(val, inputMin, inputMax, outputMin, outputMax) {
 }
 
 
-function randomVelocity() {
-    var dx = 0.001 + 0.003*Math.random();
-    var dy = 0.001 + 0.003*Math.random();
-    var dz = 0.001 + 0.003*Math.random();
-    if (Math.random() < 0.5) {
-        dx = -dx;
-    }
-    if (Math.random() < 0.5) {
-        dy = -dy;
-    }
-    if (Math.random() < 0.5) {
-        dz = -dz;
-    }
-    return new THREE.Vector3(dx,dy,dz);
-}
+// function randomVelocity() {
+//     var dx = 0.001 + 0.003*Math.random();
+//     var dy = 0.001 + 0.003*Math.random();
+//     var dz = 0.001 + 0.003*Math.random();
+//     if (Math.random() < 0.5) {
+//         dx = -dx;
+//     }
+//     if (Math.random() < 0.5) {
+//         dy = -dy;
+//     }
+//     if (Math.random() < 0.5) {
+//         dz = -dz;
+//     }
+//     return new THREE.Vector3(dx,dy,dz);
+// }

@@ -813,7 +813,7 @@ float pnoise(vec3 P, vec3 rep)
 
         vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
 
-        gl_PointSize = 8.0;
+        gl_PointSize = 1;
 
         gl_Position = projectionMatrix * mvPosition;
 
