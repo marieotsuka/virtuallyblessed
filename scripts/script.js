@@ -312,15 +312,18 @@ function createLogo(){
 
           const numVertices = logo_bufferGeometry.attributes.position.count;
           const alphas = new Float32Array( numVertices * 1 ); // 1 values per vertex
+          const sizes = new Float32Array( numVertices * 1 ); // 1 values per vertex
 
           // console.log('nv',numVertices);
 
           for( var i = 0; i < numVertices; i ++ ) {
               // set alpha randomly
-              alphas[ i ] = Math.random();     
+              alphas[ i ] = Math.random();
+              sizes[ i ] = Math.random()*2;
           }
 
           logo_bufferGeometry.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
+          logo_bufferGeometry.setAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
 
           // console.log(logo_bufferGeometry);
           // var cubeGeometry = new THREE.CubeGeometry( 50, 50, 50, 20, 20, 20 );
@@ -336,6 +339,7 @@ function createLogo(){
             uniforms: logo_uniforms,
             vertexShader:   document.getElementById( 'pts_vertexshader' ).textContent,
             fragmentShader: document.getElementById( 'pts_fragmentshader' ).textContent,
+            blending: THREE.AdditiveBlending,
             transparent: true,
           });
 
@@ -433,9 +437,6 @@ function ptInTriangle(p, p0, p1, p2) {
 
 function animateLogo(time){
     
-
-  let delta = 100000/(time*time);
-  // console.log(delta);
   
   for ( let i = 0; i < vbLogo.children.length; i ++ ) {
       const logoPoints = vbLogo.children[ i ];
@@ -443,20 +444,22 @@ function animateLogo(time){
       if ( logoPoints instanceof THREE.Points ) {
         // console.log(logoPoints);
 
-        let alphas = logoPoints.geometry.attributes.alpha;
-        let count = alphas.count;    
-
-        let positions = logoPoints.geometry.attributes.position;
+        const logopt_alphas = logoPoints.geometry.attributes.alpha;   
+        const logopt_sizes = logoPoints.geometry.attributes.size;
+        // const logopt_positions = logoPoints.geometry.attributes.position;
         
+        const count = logopt_alphas.count; 
         for( let j = 0; j < count; j ++ ) {
-            // dynamically change alphas
-            alphas.array[j] = Math.random();
-            // positions.array[j] *= .95;
-            // if ( alphas.array[ j ] < 0.01 ) { 
-            //     alphas.array[ j ] = 1.0;
+            // dynamically change alphas and sizes
+            logopt_alphas.array[j] = ( 1 + Math.sin( 0.5 * j + time ) );
+            logopt_sizes.array[j] = 1 * ( 1 + Math.sin( 0.2 * j + time ) );
+            // logopt_positions.array[j] *= .95;
+            // if ( logopt_alphas.array[ j ] < 0.01 ) { 
+            //     logopt_alphas.array[ j ] = 1.0;
             // }           
         }
-        alphas.needsUpdate = true; // important!
+        logopt_alphas.needsUpdate = true; // important!
+        logopt_sizes.needsUpdate = true;
         // positions.needsUpdate = true; // important!
         // console.log(logoPoints);
 
@@ -515,7 +518,7 @@ function createText( ){
     //     uniforms: 
     //   { 
     //     "c":   { type: "f", value: 1 },
-    //     "p":   { type: "f", value: .4 },
+    //     "p":   { type: fan"f", value: .4 },
     //     glowColor: { type: "c", value: glowColor },
     //     viewVector: { type: "v3", value: camera.position }
     //   },
@@ -655,10 +658,10 @@ function animation() {
 
   // console.log(diff); 
 
-  if (diff > 30){
+  if (diff > 10){
     // animateText(time)
 
-    animateLogo(diff)
+    animateLogo(time);
   }
   // rotate letters
   

@@ -803,6 +803,7 @@ float pnoise(vec3 P, vec3 rep)
 
 <script type="x-shader/x-vertex" id="pts_vertexshader">
 
+    attribute float size;
     attribute float alpha;
 
     varying float vAlpha;
@@ -813,7 +814,7 @@ float pnoise(vec3 P, vec3 rep)
 
         vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
 
-        gl_PointSize = 1.0;
+        gl_PointSize = size;
 
         gl_Position = projectionMatrix * mvPosition;
 
