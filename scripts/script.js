@@ -32,7 +32,7 @@ function init() {
 
   createSmoke();
 
-  // createText();
+  createText();
   createLogo();
   scene.add(sphereGroup);
   sphereGroup.position.set(0,0,-4);
@@ -439,7 +439,7 @@ function animateLogo(time){
     
   
   for ( let i = 0; i < vbLogo.children.length; i ++ ) {
-      const logoPoints = vbLogo.children[ i ];
+      const   logoPoints = vbLogo.children[ i ];
 
       if ( logoPoints instanceof THREE.Points ) {
         // console.log(logoPoints);
@@ -505,43 +505,27 @@ function createText( ){
 
   lettersBase = new THREE.Object3D();
   sphereGroup.add(lettersBase);
-  
-  // const letterMaterial = new THREE.MeshPhongMaterial({
-  //   color: 'white',
-  //   transparent: true,
-  //   blending: THREE.AdditiveBlending,
-  // });  
 
-    // outer text glow
-    // let outerText = new THREE.ShaderMaterial( 
-    // {
-    //     uniforms: 
-    //   { 
-    //     "c":   { type: "f", value: 1 },
-    //     "p":   { type: fan"f", value: .4 },
-    //     glowColor: { type: "c", value: glowColor },
-    //     viewVector: { type: "v3", value: camera.position }
-    //   },
-    //   vertexShader:   document.getElementById( 'glowVertexShader'   ).textContent,
-    //   fragmentShader: document.getElementById( 'glowFragmentShader' ).textContent,
-    //   side: THREE.BackSide,
-    //   blending: THREE.AdditiveBlending,
-    //   transparent: true
-    // } );
 
-    // sphereGroup.add(outerText);
-
-    const fontLoader = new THREE.FontLoader();
-    fontLoader.load('https://threejsfundamentals.org/threejs/resources/threejs/fonts/helvetiker_regular.typeface.json', (font) => {
+   {
+      const letterMaterial = new THREE.MeshPhongMaterial({
+        color: 'white',
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+      });   
+    const loader = new THREE.FontLoader();
+    loader.load('https://threejsfundamentals.org/threejs/resources/threejs/fonts/helvetiker_regular.typeface.json', (font) => {
       const spaceSize = 0.1;
       let totalWidth = 0.3;
-      let maxHeight = 0;
+      let maxHeight = 0;    
       const letterGeometries = {
-        ' ': { width: spaceSize, height: 0.5 }, // prepopulate space ' '
+        ' ': { width: spaceSize, height: 0 }, // prepopulate space ' '
       };
+      
       const size = new THREE.Vector3();
       const str = 'For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful.';
-      letterInfos = str.split('').map((letter, ndx) => {
+      
+      const letterInfos = str.split('').map((letter, ndx) => {
         if (!letterGeometries[letter]) {
           const geometry = new THREE.TextGeometry(letter, {
             font: font,
@@ -549,82 +533,43 @@ function createText( ){
             height: 0.001,
             curveSegments: 8,
             bevelEnabled: false
-          });
+          }); 
           geometry.computeBoundingBox();
-          geometry.computeFaceNormals();
-          // geometry.computeVertexNormals();
-          // geometry.center();
-          
-          // console.log(geometry);
-          fillWithPoints(geometry, 400);
-
-          geometry.vertices.forEach(function(vertex) {
-            vertex.startPoint = vertex.clone();
-            vertex.direction = vertex.clone().normalize();
-          });
-
-          geometry.verticesNeedUpdate = true;
-
-          // let letter_points = new THREE.Points(geometry, new THREE.PointsMaterial({
-          //   color: 'white',
-          //   size: 0.0001,
-          //   sizeAttenuation: false
-          // }));
-
-
-          // geometry.computeBoundingBox();
           geometry.boundingBox.getSize(size);
-
           letterGeometries[letter] = {
             geometry,
-            width:  size.x*.6, // no idea why size.x is double size
+            width: size.x *0.55, // no idea why size.x is double size
             height: size.y,
-            alpha: Math.random()
-          }
-
-
-          textMaterial = new THREE.PointsMaterial({
-            color: 'white',
-            size: 0.001,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            opacity: 1
-          });
-
-
-          textMaterial.needsUpdate = true;
-
-          const {geo, width, height} = letterGeometries[letter];
-          const pts = geo
-              ? new THREE.Points(geo, textMaterial)
-              : null;
-          totalWidth += width;
-          maxHeight = Math.max(maxHeight, height);
-          return {
-            pts,
-            width,
           };
-
-        }//end if
-      });//end string split processing
-
+        }
+        const {geometry, width, height} = letterGeometries[letter];
+        const mesh = geometry
+            ? new THREE.Mesh(geometry, letterMaterial)
+            : null;
+        totalWidth += width;
+        maxHeight = Math.max(maxHeight, height);
+        return {
+          mesh,
+          width,
+        };
+      });
       let t = 0;
       const radius = totalWidth / Math.PI;
-
-      for (const {pts, width} of letterInfos) {
-        if (pts) {
+      for (const {mesh, width} of letterInfos) {
+        if (mesh) {
           const offset = new THREE.Object3D();
           lettersBase.add(offset);
-          offset.add(pts);
+          offset.add(mesh);
           offset.rotation.y = t / totalWidth * Math.PI * 2;
-          pts.position.z = radius;
-          pts.position.y = -maxHeight / 2;
+          mesh.position.z = radius;
+          mesh.position.y = -maxHeight / 2;
         }
         t += width;
       }
-
-    });//finishh load
-
+      
+    });
+  }//finish load
+    // console.log('loaded teext');
 }
 
 
@@ -659,7 +604,7 @@ function animation() {
   // console.log(diff); 
 
   if (diff > 10){
-    // animateText(time)
+    animateText(time)
 
     animateLogo(time);
   }
