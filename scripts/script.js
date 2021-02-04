@@ -189,22 +189,23 @@ smokeParticles.scale.set(0.2, 0.2, 0.2);
 let simplex = new FastSimplexNoise();
 let smokeParts = [];
 
-let smokeMaterial, smokePositions, smokeColors, smokeSizes;
+let s_material, smokeMaterial, smokePositions, smokeColors, smokeSizes;
 
 smokeMaterial = new THREE.PointsMaterial({
-  size: 0.02,
-  map: createCanvasMaterial('white', 256),
+  size: 0.03,
+  // map: createCanvasMaterial('white', 256),
   blending: THREE.AdditiveBlending,
   transparent: true,
   depthWrite: false
 });
 
 let tSize = 4;
+let base = 10;
+let s_texture = generateTexture();
 function createSmoke(){
   console.log('make smoke');
 
   let scale = 2;
-  let base = 8;
   smokeCount = base * base * base;
 
   smokeGeometry = new THREE.BufferGeometry();
@@ -238,18 +239,87 @@ function createSmoke(){
     });
   }
 
-  const smokeMesh = new THREE.Points( smokeGeometry, smokeMaterial );
+  s_material = new THREE.ShaderMaterial({
+        uniforms: {
+          texture: {
+            type: 't',
+            value: s_texture
+          }
+        },
+        vertexShader: `
+          attribute float size;
+          attribute vec4 color;
+          varying vec4 vColor;
+          void main() {
+            vColor = color;
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            gl_PointSize = size * (300.0 / length(mvPosition.xyz));
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D texture;
+          varying vec4 vColor;
+          void main(void) {
+            gl_FragColor = vColor * texture2D(texture, gl_PointCoord);
+          }
+        `,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        transparent: true
+      });
+
+
+  const smokeMesh = new THREE.Points( smokeGeometry, s_material );
   smokeParticles.add(smokeMesh);
   smokeGeometry.attributes.position.needsUpdate = true;
   smokeGeometry.attributes.size.needsUpdate = true;
+  smokeGeometry.attributes.color.needsUpdate = true;
 
   sphereGroup.add(smokeParticles);
 }
 
 
+function generateTexture() {
+    let c = document.createElement('canvas');
+    let ctx = c.getContext('2d');
+    let size = 128;
+    c.width = size;
+    c.height = size;
+
+    let gradient = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.4);
+    gradient.addColorStop(0, 'hsla(0, 0%, 100%, 1)');
+    gradient.addColorStop(1, 'hsla(0, 0%, 100%, 0)');
+
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    let texture = new THREE.Texture(c);
+    texture.needsUpdate = true;
+
+    return texture;
+  }
+
 //------
 //LOGO
 //-----
+
+// values that are constant for all particles during a draw call
+let logo_uniforms = {
+    color: { value: new THREE.Color( 'white' ) },
+};
+      
+let logo_shaderMaterial = new THREE.ShaderMaterial( 
+{
+  uniforms: logo_uniforms,
+  vertexShader:   document.getElementById( 'pts_vertexshader' ).textContent,
+  fragmentShader: document.getElementById( 'pts_fragmentshader' ).textContent,
+  blending: THREE.AdditiveBlending,
+  transparent: true
+});
+
 
 let vbLogo;
 function createLogo(){
@@ -257,7 +327,7 @@ function createLogo(){
   // instantiate a loader
   const loader = new SVGLoader();
 
-  const logoPointCount = 200;
+  const logoPointCount = 300;
   // load a SVG resource
   loader.load(
     // resource URL
@@ -309,7 +379,6 @@ function createLogo(){
           // console.log('vertices', logo_vertices);
 
           logo_bufferGeometry.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(logo_vertices), 3 ) );
-
           const numVertices = logo_bufferGeometry.attributes.position.count;
           const alphas = new Float32Array( numVertices * 1 ); // 1 values per vertex
           const sizes = new Float32Array( numVertices * 1 ); // 1 values per vertex
@@ -319,7 +388,7 @@ function createLogo(){
           for( var i = 0; i < numVertices; i ++ ) {
               // set alpha randomly
               alphas[ i ] = Math.random();
-              sizes[ i ] = Math.random()*2;
+              sizes[ i ] = Math.random()*1.5;
           }
 
           logo_bufferGeometry.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
@@ -328,21 +397,6 @@ function createLogo(){
           // console.log(logo_bufferGeometry);
           // var cubeGeometry = new THREE.CubeGeometry( 50, 50, 50, 20, 20, 20 );
           // var discTexture = THREE.ImageUtils.loadTexture( 'images/disc.png' );
-          
-          // values that are constant for all particles during a draw call
-          let logo_uniforms = {
-              color: { value: new THREE.Color( 'white' ) },
-          };
-                
-          let logo_shaderMaterial = new THREE.ShaderMaterial( 
-          {
-            uniforms: logo_uniforms,
-            vertexShader:   document.getElementById( 'pts_vertexshader' ).textContent,
-            fragmentShader: document.getElementById( 'pts_fragmentshader' ).textContent,
-            blending: THREE.AdditiveBlending,
-            transparent: true,
-          });
-
 
           let logo_points = new THREE.Points(logo_bufferGeometry, logo_shaderMaterial);
 
@@ -353,9 +407,9 @@ function createLogo(){
 
 
       vbLogo.scale.y = -1;
-      vbLogo.position.x = -2.75;
+      vbLogo.position.x = -2.75;  
       vbLogo.position.y = 3;
-      vbLogo.scale.multiplyScalar(0.008);
+      vbLogo.scale.multiplyScalar(0.009);
 
       sphereGroup.add( vbLogo );
     },      
@@ -368,8 +422,6 @@ function createLogo(){
       console.log( 'An error happened', error );
     }
   );
-
-  
 
 }
 
@@ -434,32 +486,269 @@ function ptInTriangle(p, p0, p1, p2) {
 //---------------------
 
 
+//-------------
+// ADD TEXT
+//-------------
+
+let lettersBase, letterInfos, textMaterial;
+function createText( ){
+
+  lettersBase = new THREE.Object3D();
+  sphereGroup.add(lettersBase);
+  // lettersBase.scale.multiplyScalar(0.001);
+
+   {
+      // const letterMaterial = new THREE.MeshNormalMaterial({
+      //   transparent: true,
+      //   blending: THREE.AdditiveBlending,
+      // });   
+
+    const loader = new THREE.FontLoader();
+    loader.load('https://threejsfundamentals.org/threejs/resources/threejs/fonts/helvetiker_regular.typeface.json', (font) => {
+      const spaceSize = 0.1;
+      let totalWidth = 0.3;
+      let maxHeight = 0;    
+      const letterGeometries = {
+        ' ': { width: spaceSize, height: 0.5 }, // prepopulate space ' '
+      };
+      
+      const size = new THREE.Vector3();
+      const str = 'For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful.';
+      
+      letterInfos = str.split('').map((letter, ndx) => {
+        //store each letter's shapes if it hasn't been stored yet
+        if (!letterGeometries[letter]) {
+          const charGeo = new THREE.TextGeometry(letter, {
+            font: font,
+            size: 0.2,
+            height: 0.001,
+            curveSegments: 8,
+            bevelEnabled: false
+          }); 
+
+          charGeo.computeBoundingBox();
+
+          charGeo.boundingBox.getSize(size);
+
+          charGeo.computeFaceNormals();
+          charGeo.computeVertexNormals();
+
+          fillWithPoints(charGeo, 200);
+
+          const char_vertices = [];
+          charGeo.vertices.forEach(function(vertex) {
+            vertex.startPoint = vertex.clone();
+            vertex.direction = vertex.clone().normalize();
+            char_vertices.push(vertex.x, vertex.y, vertex.z);
+          });
+
+          charGeo.verticesNeedUpdate = true;
+          
+          let charBufferGeo = new THREE.BufferGeometry().fromGeometry( charGeo );
+
+          // console.log('lpg', logoPath_geometry);
+
+          // console.log('lpbuff', logo_bufferGeometry);
+
+          // console.log('vertices', logo_vertices);
+
+          charBufferGeo.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(char_vertices), 3 ) );
+
+          const numVertices = charBufferGeo.attributes.position.count;
+          const alphas = new Float32Array( numVertices * 1 ); // 1 values per vertex
+          const sizes = new Float32Array( numVertices * 1 ); // 1 values per vertex
+
+          // console.log('nv',numVertices);
+
+          for( var i = 0; i < numVertices; i ++ ) {
+              // set alpha randomly
+              alphas[ i ] = Math.random();
+              sizes[ i ] = Math.random()*2;
+          }
+
+          charBufferGeo.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
+          charBufferGeo.setAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
+
+          // console.log(charBufferGeo);
+          // var cubeGeometry = new THREE.CubeGeometry( 50, 50, 50, 20, 20, 20 );
+          // var discTexture = THREE.ImageUtils.loadTexture( 'images/disc.png' );
+
+          // let logo_points = new THREE.Points(charBufferGeo, logo_shaderMaterial);
+
+          letterGeometries[letter] = {
+            charBufferGeo,
+            width: size.x *0.55, 
+            height: size.y,
+          };
+
+        } //end if       
+
+        // textMaterial = new THREE.PointsMaterial({
+        //   color: 'white',
+        //   size: 0.00 1
+        // });
+
+
+
+        // let letter_points = new THREE.Points(geometry, new THREE.PointsMaterial({
+        //   color: 'white',
+        //   size: 0.0001,
+        //   sizeAttenuation: false
+        // }));
+
+        // console.log(letter, letterGeometries[letter]  );
+
+        const {charBufferGeo, width, height} = letterGeometries[letter]; 
+        // console.log(charBufferGeo);
+
+        const textPts = charBufferGeo
+            ? new THREE.Points(charBufferGeo, logo_shaderMaterial)
+            : null;
+        totalWidth += width;
+        maxHeight = Math.max(maxHeight, height);
+       return {
+          textPts,
+          width
+        };    
+      }); //finish splitting text
+
+
+      // console.log(letterInfos);
+
+      let t = 0;
+      const radius = totalWidth / Math.PI;
+      for (const {textPts, width} of letterInfos) {
+        if (textPts) {
+          // console.log(textPts);
+          const offset = new THREE.Object3D();
+          lettersBase.add(offset);
+          offset.add(textPts);
+          offset.rotation.y = t / totalWidth * Math.PI * 2;
+          textPts.position.z = radius;
+          textPts.position.y = -maxHeight / 2;
+        }
+        t += width;
+      }
+      
+    });
+  }//close bracket
+
+  // console.log(lettersBase);
+}
+
+
+
+//ANIMATE
+
+let start = Date.now();
+// const clock = new Clock();
+// const delta = clock.getDelta();
+
+
+function animateText(time){
+  const letterCount = lettersBase.children.length;
+  // console.log(letterInfos);
+  // console.log(lettersBase);
+
+  for ( let i = 0; i < letterCount; i ++ ) {
+      const letterObj = lettersBase.children[ i ].children[0];
+
+      const letterPos = lettersBase.children[ i ].rotation.y; 
+      // console.log(letterPos); //0–6
+
+      if ( letterObj instanceof THREE.Points ) {
+       
+        const letter_alphas = letterObj.geometry.attributes.alpha;   
+        const letter_sizes = letterObj.geometry.attributes.size;
+        
+        
+        const count = letter_alphas.count; 
+        for( let j = 0; j < count; j ++ ) {
+
+            // let alphadiff = 1 - (letterPos/6) );
+            letter_alphas.array[j] =  1 + Math.sin( 0.5 * j + time ) ;     
+            // letter_sizes.array[j] = 5  * ( 1 + Math.sin( 2 * j + time ) );        
+        }
+        letter_alphas.needsUpdate = true; 
+        // letter_sizes.needsUpdate = true;
+    }
+  }
+  lettersBase.rotation.y = time * -0.05;
+  // console.log(lettersBase.rotation.y);
+
+}
+
+function animateStars(){
+  starSystem.position.z += 0.3;
+}
+
+function animation() {
+  // animation.timeScale = 1/5 ; 
+
+
+  setTimeout( function() {
+
+          requestAnimationFrame(animation);
+
+      }, 1000 / 30 );
+
+  
+  // animation.timeScale = 1/5 ; 
+
+  let time = Date.now() * 0.003;
+  let diff = (Date.now()-start)* 0.01;
+
+  // console.log(diff); 
+
+  animateStars();
+
+  if (diff > 10){
+
+    // animateText(time)
+
+    // animateLogo(time);
+  }
+  // rotate letters
+  
+
+  
+  
+
+  animateSmoke(Date.now());
+
+  renderer.render(scene, camera);
+}
+
 
 function animateLogo(time){
     
   
   for ( let i = 0; i < vbLogo.children.length; i ++ ) {
-      const   logoPoints = vbLogo.children[ i ];
+      const  logoPoints = vbLogo.children[ i ];
 
       if ( logoPoints instanceof THREE.Points ) {
         // console.log(logoPoints);
 
         const logopt_alphas = logoPoints.geometry.attributes.alpha;   
         const logopt_sizes = logoPoints.geometry.attributes.size;
-        // const logopt_positions = logoPoints.geometry.attributes.position;
+        const logopt_positions = logoPoints.geometry.attributes.position;
+        const logopt_orig_positions = logopt_positions;
         
         const count = logopt_alphas.count; 
         for( let j = 0; j < count; j ++ ) {
             // dynamically change alphas and sizes
-            logopt_alphas.array[j] = ( 1 + Math.sin( 0.5 * j + time ) );
-            logopt_sizes.array[j] = 1 * ( 1 + Math.sin( 0.2 * j + time ) );
-            // logopt_positions.array[j] *= .95;
-            // if ( logopt_alphas.array[ j ] < 0.01 ) { 
-            //     logopt_alphas.array[ j ] = 1.0;
-            // }           
+            logopt_alphas.array[j] = 0.5 + Math.sin( 2 * j + time ) ;
+            logopt_sizes.array[j] = 0.5 * ( 1 + Math.sin( 5 * j + time ) );
+            // logopt_positions.array[j] = time * Math.random() * 1000; 
         }
+
+        logopt_positions.needsUpdate = true;
         logopt_alphas.needsUpdate = true; // important!
         logopt_sizes.needsUpdate = true;
+        
+       
+        // logoPoints.geometry.verticesNeedUpdate = true;
+
         // positions.needsUpdate = true; // important!
         // console.log(logoPoints);
 
@@ -469,7 +758,7 @@ function animateLogo(time){
         //   v.x = v.startPoint.x + Math.random() * delta;
         // }); 
 
-        // logoPoints.geometry.verticesNeedUpdate = true;
+        
 
 
   //         logoPoints.material.opacity = Math.random();
@@ -496,139 +785,17 @@ function animateLogo(time){
   // });
 }
 
-//-------------
-// ADD TEXT
-//-------------
 
-let lettersBase, letterInfos, textMaterial;
-function createText( ){
-
-  lettersBase = new THREE.Object3D();
-  sphereGroup.add(lettersBase);
-
-
-   {
-      const letterMaterial = new THREE.MeshPhongMaterial({
-        color: 'white',
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-      });   
-    const loader = new THREE.FontLoader();
-    loader.load('https://threejsfundamentals.org/threejs/resources/threejs/fonts/helvetiker_regular.typeface.json', (font) => {
-      const spaceSize = 0.1;
-      let totalWidth = 0.3;
-      let maxHeight = 0;    
-      const letterGeometries = {
-        ' ': { width: spaceSize, height: 0 }, // prepopulate space ' '
-      };
-      
-      const size = new THREE.Vector3();
-      const str = 'For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful.';
-      
-      const letterInfos = str.split('').map((letter, ndx) => {
-        if (!letterGeometries[letter]) {
-          const geometry = new THREE.TextGeometry(letter, {
-            font: font,
-            size: 0.2,
-            height: 0.001,
-            curveSegments: 8,
-            bevelEnabled: false
-          }); 
-          geometry.computeBoundingBox();
-          geometry.boundingBox.getSize(size);
-          letterGeometries[letter] = {
-            geometry,
-            width: size.x *0.55, // no idea why size.x is double size
-            height: size.y,
-          };
-        }
-        const {geometry, width, height} = letterGeometries[letter];
-        const mesh = geometry
-            ? new THREE.Mesh(geometry, letterMaterial)
-            : null;
-        totalWidth += width;
-        maxHeight = Math.max(maxHeight, height);
-        return {
-          mesh,
-          width,
-        };
-      });
-      let t = 0;
-      const radius = totalWidth / Math.PI;
-      for (const {mesh, width} of letterInfos) {
-        if (mesh) {
-          const offset = new THREE.Object3D();
-          lettersBase.add(offset);
-          offset.add(mesh);
-          offset.rotation.y = t / totalWidth * Math.PI * 2;
-          mesh.position.z = radius;
-          mesh.position.y = -maxHeight / 2;
-        }
-        t += width;
-      }
-      
-    });
-  }//finish load
-    // console.log('loaded teext');
-}
-
-
-
-//ANIMATE
-
-let start = Date.now();
-// const clock = new Clock();
-// const delta = clock.getDelta();
-
-function animateText(t){
-  // console.log(letterInfos);
-  lettersBase.rotation.y = t * -0.08;
-  // console.log(lettersBase.rotation.y);
-
-}
-function animation() {
-  // animation.timeScale = 1/5 ; 
-
-  setTimeout( function() {
-
-          requestAnimationFrame(animation);
-
-      }, 1000 / 10 );
-
-  
-  // animation.timeScale = 1/5 ; 
-
-  let time = Date.now() * 0.003;
-  let diff = (Date.now()-start)* 0.01;
-
-  // console.log(diff); 
-
-  if (diff > 10){
-    animateText(time)
-
-    animateLogo(time);
-  }
-  // rotate letters
-  
- // starSystem.position.z += 0.3;
- // if (starSystem.position.z > 1000) {
- //   starSystem.position.z = 0.01
- // }
-  
-  
-
-  animateSmoke(Date.now());
-
-  renderer.render(scene, camera);
-}
-
-
-
-
-function updateParticleAttributes(position, size) {
+function updateParticleAttributes(color, position, size) {
     let i = smokeCount;
     while(i--) {
       let part = smokeParts[i];
+      if(color) {
+        smokeColors[i * 4 + 0] = part.r;
+        smokeColors[i * 4 + 1] = part.g;
+        smokeColors[i * 4 + 2] = part.b;
+        smokeColors[i * 4 + 3] = part.a;
+      }
       if(position) {
         smokePositions[i * 3 + 0] = part.position.x;
         smokePositions[i * 3 + 1] = part.position.y;
@@ -637,6 +804,9 @@ function updateParticleAttributes(position, size) {
       if(size) {
         smokeSizes[i] = part.size;
       }
+    }
+    if(color) {
+      smokeGeometry.attributes.color.needsUpdate = true;
     }
     if(position) {
       smokeGeometry.attributes.position.needsUpdate = true;
@@ -685,7 +855,6 @@ function animateSmoke(time){
       100 + noiseTime
     )* k + k;
 
-    
 
    part.position.x += Math.sin(noise1 * Math.PI * 2) * noiseVelocity * timedif;
    part.position.y += Math.sin(noise2 * Math.PI * 2) * noiseVelocity * timedif;
@@ -709,20 +878,28 @@ function animateSmoke(time){
       part.position.z = randCalc(-tSize, tSize);
 
       // let hue = (timedif / 25 + randCalc(90)) % 360 + 110;
-      let lightness = parseInt(Math.random()*100);
-      let smokeColor = new THREE.Color('white');
-      // this.color.set(`rgb(255,0,0)`);
+      // let lightness = parseInt(Math.random()*100);
+      // let smokeColor = new THREE.Color('white');
+      // // this.color.set(`rgb(255,0,0)`);
+      let lightness = Math.round(randCalc(10, 50));
+      let hue = (180 + randCalc(90)) % 360 + 110;
+      let partColor = new THREE.Color(`hsl(${hue}, 85%, ${lightness}%)`);
 
-      part.r = smokeColor.r;
-      part.g = smokeColor.g;
-      part.b = smokeColor.b;
+      part.r = partColor.r;
+      part.g = partColor.g;
+      part.b = partColor.b;
 
       part.firstRun = false;
+
+      // part.r = part.color.r;
+      // part.g = part.g;
+      // part.b = part.b;
+
     }
-    // part.a = part.life > 1 ? 2 - part.life : part.life;
+    part.a = part.life > 1 ? 2 - part.life : part.life;
     // part.size = mapCalc(1, 0, 1, part.baseSize * 4, part.baseSize * 1);
 
-    updateParticleAttributes(true, true);
+    updateParticleAttributes(true, true, true);
   }
 
   smokeParticles.rotation.y = (0.001) * time;
@@ -747,6 +924,43 @@ function randCalc(min, max, ease){
 function mapCalc(val, inputMin, inputMax, outputMin, outputMax) {
   return ((outputMax - outputMin) * ((val - inputMin) / (inputMax - inputMin))) + outputMin;
 }
+
+function fadeMesh(mesh, direction, options) {
+    options = options || {};
+    // set and check 
+    var current = { percentage : direction == "in" ? 1 : 0 },
+    // this check is used to work with normal and multi materials.
+    mats = mesh.material.materials ? 
+             mesh.material.materials : [mesh.material],
+ 
+     originals = mesh.userData.originalOpacities,
+     easing = options.easing || TWEEN.Easing.Linear.None,
+     duration = options.duration || 2000;
+    // check to make sure originals exist
+    if( !originals ) {
+         console.error("Fade error: originalOpacities not defined, use trackOriginalOpacities");
+          return;
+    }
+    // tween opacity back to originals
+    var tweenOpacity = new TWEEN.Tween(current)
+        .to({ percentage: direction == "in" ? 0 : 1 }, duration)
+        .easing(easing)
+        .onUpdate(function() {
+             for (var i = 0; i < mats.length; i++) {
+                mats[i].opacity = originals[i] * current.percentage;
+             }
+         })
+         .onComplete(function(){
+              if(options.callback){
+                   options.callback();
+              }
+         });
+    tweenOpacity.start();
+    return tweenOpacity;
+}
+/* How to use */
+// fade in 
+
 
 
 // function randomVelocity() {
