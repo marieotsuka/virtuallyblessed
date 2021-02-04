@@ -9,10 +9,6 @@ const sphereSize = 1;
 const glowColor = new THREE.Color('rgb(200,250,225)');
 const loader = new THREE.TextureLoader();
 
-// rgb(200,250,225)
-
-
-
 //-----------------------
 // Initialize 
 //------------------------
@@ -32,8 +28,10 @@ function init() {
 
   createSmoke();
 
+
+
   createText();
-  createLogo();
+  // createLogo();
   scene.add(sphereGroup);
   sphereGroup.position.set(0,0,-4);
 
@@ -184,28 +182,27 @@ function createStars(){
 
 let smokeGeometry, smokeCount;
 let smokeParticles = new THREE.Object3D();
-smokeParticles.scale.set(0.2, 0.2, 0.2);
+// smokeParticles.scale.set(0.2, 0.2, 0.2);
 // smokeParticles.opacity = 0.8;
 let simplex = new FastSimplexNoise();
 let smokeParts = [];
 
-let s_material, smokeMaterial, smokePositions, smokeColors, smokeSizes;
+let smokeMaterial, smokePositions, smokeColors, smokeSizes;
 
 smokeMaterial = new THREE.PointsMaterial({
-  size: 0.03,
-  // map: createCanvasMaterial('white', 256),
+  size: 0.025,
+  map: createCanvasMaterial('white', 256),
   blending: THREE.AdditiveBlending,
   transparent: true,
   depthWrite: false
 });
 
-let tSize = 4;
-let base = 10;
-let s_texture = generateTexture();
+let tSize = 3;
+let base = 12;
+
 function createSmoke(){
   console.log('make smoke');
 
-  let scale = 2;
   smokeCount = base * base * base;
 
   smokeGeometry = new THREE.BufferGeometry();
@@ -239,68 +236,38 @@ function createSmoke(){
     });
   }
 
-  s_material = new THREE.ShaderMaterial({
-        uniforms: {
-          texture: {
-            type: 't',
-            value: s_texture
-          }
-        },
-        vertexShader: `
-          attribute float size;
-          attribute vec4 color;
-          varying vec4 vColor;
-          void main() {
-            vColor = color;
-            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-            gl_PointSize = size * (300.0 / length(mvPosition.xyz));
-            gl_Position = projectionMatrix * mvPosition;
-          }
-        `,
-        fragmentShader: `
-          uniform sampler2D texture;
-          varying vec4 vColor;
-          void main(void) {
-            gl_FragColor = vColor * texture2D(texture, gl_PointCoord);
-          }
-        `,
-        blending: THREE.AdditiveBlending,
-        depthTest: false,
-        transparent: true
-      });
-
-
-  const smokeMesh = new THREE.Points( smokeGeometry, s_material );
+  const smokeMesh = new THREE.Points( smokeGeometry, smokeMaterial );
   smokeParticles.add(smokeMesh);
   smokeGeometry.attributes.position.needsUpdate = true;
   smokeGeometry.attributes.size.needsUpdate = true;
-  smokeGeometry.attributes.color.needsUpdate = true;
 
+  smokeParticles.scale.multiplyScalar(0.001);
+  smokeParticles.opacity = 0.1; 
   sphereGroup.add(smokeParticles);
-}
 
+  
+  // var smokeScale =  new THREE.Vector3(0.1,0.1,0.1);
+  // var smokeScaleTarget = new THREE.Vector3(0.02,0.02,0.02);
+  
+  let smokeAppear = new TWEEN.Tween(smokeParticles.scale)
+      .to({x: 0.03, y: 0.03, z: 0.03}, 3000 )
+      .easing(TWEEN.Easing.Exponential.Out);
 
-function generateTexture() {
-    let c = document.createElement('canvas');
-    let ctx = c.getContext('2d');
-    let size = 128;
-    c.width = size;
-    c.height = size;
+  let smokeScale = new TWEEN.Tween(smokeParticles.scale)
+      .to({x: 0.21, y: 0.21, z: 0.21}, 20000 )
+      .easing(TWEEN.Easing.Linear.None);
 
-    let gradient = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.4);
-    gradient.addColorStop(0, 'hsla(0, 0%, 100%, 1)');
-    gradient.addColorStop(1, 'hsla(0, 0%, 100%, 0)');
+  let smokeExpand = new TWEEN.Tween(smokeParticles.scale)
+      .to({x: 0.8, y: 0.8, z: 0.8}, 1000)
+      .easing(TWEEN.Easing.Cubic.Out)
 
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-    ctx.fillStyle = gradient;
-    ctx.fill();
+  
+  smokeAppear.chain(smokeScale);
+  smokeScale.chain(smokeExpand);
+  smokeAppear.start();
 
-    let texture = new THREE.Texture(c);
-    texture.needsUpdate = true;
+} 
 
-    return texture;
-  }
 
 //------
 //LOGO
@@ -317,7 +284,8 @@ let logo_shaderMaterial = new THREE.ShaderMaterial(
   vertexShader:   document.getElementById( 'pts_vertexshader' ).textContent,
   fragmentShader: document.getElementById( 'pts_fragmentshader' ).textContent,
   blending: THREE.AdditiveBlending,
-  transparent: true
+  transparent: true,
+  side: THREE.BackSide
 });
 
 
@@ -506,7 +474,7 @@ function createText( ){
     const loader = new THREE.FontLoader();
     loader.load('https://threejsfundamentals.org/threejs/resources/threejs/fonts/helvetiker_regular.typeface.json', (font) => {
       const spaceSize = 0.1;
-      let totalWidth = 0.3;
+      let totalWidth = 0.2;
       let maxHeight = 0;    
       const letterGeometries = {
         ' ': { width: spaceSize, height: 0.5 }, // prepopulate space ' '
@@ -527,7 +495,6 @@ function createText( ){
           }); 
 
           charGeo.computeBoundingBox();
-
           charGeo.boundingBox.getSize(size);
 
           charGeo.computeFaceNormals();
@@ -576,31 +543,25 @@ function createText( ){
           // let logo_points = new THREE.Points(charBufferGeo, logo_shaderMaterial);
 
           letterGeometries[letter] = {
-            charBufferGeo,
+            charBufferGeo, //charBufferGeo
             width: size.x *0.55, 
             height: size.y,
           };
 
         } //end if       
 
-        // textMaterial = new THREE.PointsMaterial({
-        //   color: 'white',
-        //   size: 0.00 1
+        // MESH NORMAL FOR TESTING
+        // let mat = new THREE.MeshNormalMaterial({
+        //   transparent: true
         // });
 
+        // const {charGeo, width, height} = letterGeometries[letter]; 
+        // const textPts = charGeo
+        //     ? new THREE.Mesh(charGeo, mat)
+        //     : null;
 
-
-        // let letter_points = new THREE.Points(geometry, new THREE.PointsMaterial({
-        //   color: 'white',
-        //   size: 0.0001,
-        //   sizeAttenuation: false
-        // }));
-
-        // console.log(letter, letterGeometries[letter]  );
 
         const {charBufferGeo, width, height} = letterGeometries[letter]; 
-        // console.log(charBufferGeo);
-
         const textPts = charBufferGeo
             ? new THREE.Points(charBufferGeo, logo_shaderMaterial)
             : null;
@@ -633,7 +594,17 @@ function createText( ){
     });
   }//close bracket
 
-  // console.log(lettersBase);
+  console.log(lettersBase.children);
+
+  // setTimeout(function(){
+  //   lettersBase.children.forEach( letter =>{
+  //     let op = 1- 2*letter.rotation.y/6
+  //     console.log(letter.children[0].geometry.parameters.text, letter.rotation.y);
+  //     letter.children[0].material.opacity = op;
+  //   });
+  // }, 1000);
+
+
 }
 
 
@@ -666,20 +637,29 @@ function animateText(time){
         for( let j = 0; j < count; j ++ ) {
 
             // let alphadiff = 1 - (letterPos/6) );
-            letter_alphas.array[j] =  1 + Math.sin( 0.5 * j + time ) ;     
+            // letter_alphas.array[j] =  1 + Math.sin( 0.5 * j + time ) ;     
             // letter_sizes.array[j] = 5  * ( 1 + Math.sin( 2 * j + time ) );        
         }
         letter_alphas.needsUpdate = true; 
         // letter_sizes.needsUpdate = true;
     }
   }
+
   lettersBase.rotation.y = time * -0.05;
+
+  lettersBase.children.forEach( letter =>{
+    // let op = 1 - 2*letter.rotation.y/6;
+    // console.log(letter.children[0].geometry.parameters.text, letter.rotation.y);
+    letter.children[0].material.opacity = 0.01;
+  });
+
+
   // console.log(lettersBase.rotation.y);
 
 }
 
 function animateStars(){
-  starSystem.position.z += 0.3;
+  starSystem.position.z += 0.4;
 }
 
 function animation() {
@@ -690,7 +670,7 @@ function animation() {
 
           requestAnimationFrame(animation);
 
-      }, 1000 / 30 );
+      }, 1000 / 10 );
 
   
   // animation.timeScale = 1/5 ; 
@@ -704,7 +684,7 @@ function animation() {
 
   if (diff > 10){
 
-    // animateText(time)
+    animateText(time)
 
     // animateLogo(time);
   }
@@ -716,6 +696,8 @@ function animation() {
 
   animateSmoke(Date.now());
 
+
+  TWEEN.update();
   renderer.render(scene, camera);
 }
 
@@ -786,16 +768,10 @@ function animateLogo(time){
 }
 
 
-function updateParticleAttributes(color, position, size) {
+function updateParticleAttributes(position, size) {
     let i = smokeCount;
     while(i--) {
       let part = smokeParts[i];
-      if(color) {
-        smokeColors[i * 4 + 0] = part.r;
-        smokeColors[i * 4 + 1] = part.g;
-        smokeColors[i * 4 + 2] = part.b;
-        smokeColors[i * 4 + 3] = part.a;
-      }
       if(position) {
         smokePositions[i * 3 + 0] = part.position.x;
         smokePositions[i * 3 + 1] = part.position.y;
@@ -804,9 +780,6 @@ function updateParticleAttributes(color, position, size) {
       if(size) {
         smokeSizes[i] = part.size;
       }
-    }
-    if(color) {
-      smokeGeometry.attributes.color.needsUpdate = true;
     }
     if(position) {
       smokeGeometry.attributes.position.needsUpdate = true;
@@ -819,11 +792,11 @@ function updateParticleAttributes(color, position, size) {
 function animateSmoke(time){
   // console.log('animate smoke');
 
-  let timedif = 0.00003*(time-start);
-  
+  let timedif = 0.00005*(time-start);
+
   let noiseScale = 0.1;
-  let noiseTime = timedif * 0.00001;
-  let noiseVelocity = 0.3;
+  let noiseTime = timedif;
+  let noiseVelocity = 0.4;
   let k = 0.9;
   let j = smokeParts.length;
 
@@ -855,6 +828,7 @@ function animateSmoke(time){
       100 + noiseTime
     )* k + k;
 
+    
 
    part.position.x += Math.sin(noise1 * Math.PI * 2) * noiseVelocity * timedif;
    part.position.y += Math.sin(noise2 * Math.PI * 2) * noiseVelocity * timedif;
@@ -878,28 +852,20 @@ function animateSmoke(time){
       part.position.z = randCalc(-tSize, tSize);
 
       // let hue = (timedif / 25 + randCalc(90)) % 360 + 110;
-      // let lightness = parseInt(Math.random()*100);
-      // let smokeColor = new THREE.Color('white');
-      // // this.color.set(`rgb(255,0,0)`);
-      let lightness = Math.round(randCalc(10, 50));
-      let hue = (180 + randCalc(90)) % 360 + 110;
-      let partColor = new THREE.Color(`hsl(${hue}, 85%, ${lightness}%)`);
+      let lightness = parseInt(Math.random()*50);
+      let smokeColor = new THREE.Color('white');
+      // this.color.set(`rgb(255,0,0)`);
 
-      part.r = partColor.r;
-      part.g = partColor.g;
-      part.b = partColor.b;
+      part.r = smokeColor.r;
+      part.g = smokeColor.g;
+      part.b = smokeColor.b;
 
       part.firstRun = false;
-
-      // part.r = part.color.r;
-      // part.g = part.g;
-      // part.b = part.b;
-
     }
-    part.a = part.life > 1 ? 2 - part.life : part.life;
+    // part.a = part.life > 1 ? 2 - part.life : part.life;
     // part.size = mapCalc(1, 0, 1, part.baseSize * 4, part.baseSize * 1);
 
-    updateParticleAttributes(true, true, true);
+    updateParticleAttributes(true, true);
   }
 
   smokeParticles.rotation.y = (0.001) * time;
@@ -924,57 +890,3 @@ function randCalc(min, max, ease){
 function mapCalc(val, inputMin, inputMax, outputMin, outputMax) {
   return ((outputMax - outputMin) * ((val - inputMin) / (inputMax - inputMin))) + outputMin;
 }
-
-function fadeMesh(mesh, direction, options) {
-    options = options || {};
-    // set and check 
-    var current = { percentage : direction == "in" ? 1 : 0 },
-    // this check is used to work with normal and multi materials.
-    mats = mesh.material.materials ? 
-             mesh.material.materials : [mesh.material],
- 
-     originals = mesh.userData.originalOpacities,
-     easing = options.easing || TWEEN.Easing.Linear.None,
-     duration = options.duration || 2000;
-    // check to make sure originals exist
-    if( !originals ) {
-         console.error("Fade error: originalOpacities not defined, use trackOriginalOpacities");
-          return;
-    }
-    // tween opacity back to originals
-    var tweenOpacity = new TWEEN.Tween(current)
-        .to({ percentage: direction == "in" ? 0 : 1 }, duration)
-        .easing(easing)
-        .onUpdate(function() {
-             for (var i = 0; i < mats.length; i++) {
-                mats[i].opacity = originals[i] * current.percentage;
-             }
-         })
-         .onComplete(function(){
-              if(options.callback){
-                   options.callback();
-              }
-         });
-    tweenOpacity.start();
-    return tweenOpacity;
-}
-/* How to use */
-// fade in 
-
-
-
-// function randomVelocity() {
-//     var dx = 0.001 + 0.003*Math.random();
-//     var dy = 0.001 + 0.003*Math.random();
-//     var dz = 0.001 + 0.003*Math.random();
-//     if (Math.random() < 0.5) {
-//         dx = -dx;
-//     }
-//     if (Math.random() < 0.5) {
-//         dy = -dy;
-//     }
-//     if (Math.random() < 0.5) {
-//         dz = -dz;
-//     }
-//     return new THREE.Vector3(dx,dy,dz);
-// }
