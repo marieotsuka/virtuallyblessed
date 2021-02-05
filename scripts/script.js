@@ -31,7 +31,7 @@ function init() {
 
 
   createText();
-  // createLogo();
+  createLogo();
   scene.add(sphereGroup);
   sphereGroup.position.set(0,0,-4);
 
@@ -201,8 +201,6 @@ let tSize = 3;
 let base = 12;
 
 function createSmoke(){
-  console.log('make smoke');
-
   smokeCount = base * base * base;
 
   smokeGeometry = new THREE.BufferGeometry();
@@ -242,7 +240,8 @@ function createSmoke(){
   smokeGeometry.attributes.size.needsUpdate = true;
 
   smokeParticles.scale.multiplyScalar(0.001);
-  smokeParticles.opacity = 0.1; 
+  smokeParticles.position.y = 1;
+  // smokeParticles.opacity = 0.1; 
   sphereGroup.add(smokeParticles);
 
   
@@ -254,7 +253,7 @@ function createSmoke(){
       .easing(TWEEN.Easing.Exponential.Out);
 
   let smokeScale = new TWEEN.Tween(smokeParticles.scale)
-      .to({x: 0.21, y: 0.21, z: 0.21}, 20000 )
+      .to({x: 0.21, y: 0.21, z: 0.21}, 25000 )
       .easing(TWEEN.Easing.Linear.None);
 
   let smokeExpand = new TWEEN.Tween(smokeParticles.scale)
@@ -463,200 +462,128 @@ function createText( ){
 
   lettersBase = new THREE.Object3D();
   sphereGroup.add(lettersBase);
-  // lettersBase.scale.multiplyScalar(0.001);
-
-   {
-      // const letterMaterial = new THREE.MeshNormalMaterial({
-      //   transparent: true,
-      //   blending: THREE.AdditiveBlending,
-      // });   
+  lettersBase.position.y = -0.2;
+  
 
     const loader = new THREE.FontLoader();
     loader.load('https://threejsfundamentals.org/threejs/resources/threejs/fonts/helvetiker_regular.typeface.json', (font) => {
-      const spaceSize = 0.1;
-      let totalWidth = 0.2;
+      const spaceSize = 0.09;
+      let totalWidth = 0.3; 
       let maxHeight = 0;    
       const letterGeometries = {
-        ' ': { width: spaceSize, height: 0.5 }, // prepopulate space ' '
+        ' ': { width: spaceSize, height: 0 }, // prepopulate space ' '
       };
       
       const size = new THREE.Vector3();
-      const str = 'For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful.';
+      const str = ' For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful.        ';
       
       letterInfos = str.split('').map((letter, ndx) => {
         //store each letter's shapes if it hasn't been stored yet
         if (!letterGeometries[letter]) {
           const charGeo = new THREE.TextGeometry(letter, {
             font: font,
-            size: 0.2,
+            size: 0.16,
             height: 0.001,
             curveSegments: 8,
             bevelEnabled: false
           }); 
 
-          charGeo.computeBoundingBox();
-          charGeo.boundingBox.getSize(size);
-
-          charGeo.computeFaceNormals();
-          charGeo.computeVertexNormals();
-
-          fillWithPoints(charGeo, 200);
-
-          const char_vertices = [];
-          charGeo.vertices.forEach(function(vertex) {
-            vertex.startPoint = vertex.clone();
-            vertex.direction = vertex.clone().normalize();
-            char_vertices.push(vertex.x, vertex.y, vertex.z);
-          });
-
-          charGeo.verticesNeedUpdate = true;
-          
-          let charBufferGeo = new THREE.BufferGeometry().fromGeometry( charGeo );
-
-          // console.log('lpg', logoPath_geometry);
-
-          // console.log('lpbuff', logo_bufferGeometry);
-
-          // console.log('vertices', logo_vertices);
-
-          charBufferGeo.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(char_vertices), 3 ) );
-
-          const numVertices = charBufferGeo.attributes.position.count;
-          const alphas = new Float32Array( numVertices * 1 ); // 1 values per vertex
-          const sizes = new Float32Array( numVertices * 1 ); // 1 values per vertex
-
-          // console.log('nv',numVertices);
-
-          for( var i = 0; i < numVertices; i ++ ) {
-              // set alpha randomly
-              alphas[ i ] = Math.random();
-              sizes[ i ] = Math.random()*2;
-          }
-
-          charBufferGeo.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
-          charBufferGeo.setAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
-
-          // console.log(charBufferGeo);
-          // var cubeGeometry = new THREE.CubeGeometry( 50, 50, 50, 20, 20, 20 );
-          // var discTexture = THREE.ImageUtils.loadTexture( 'images/disc.png' );
-
-          // let logo_points = new THREE.Points(charBufferGeo, logo_shaderMaterial);
-
-          letterGeometries[letter] = {
-            charBufferGeo, //charBufferGeo
-            width: size.x *0.55, 
+        charGeo.computeBoundingBox();
+        charGeo.boundingBox.getSize(size); 
+        letterGeometries[letter] = {
+            charGeo, //charBufferGeo
+            width: size.x *0.6, 
             height: size.y,
           };
 
         } //end if       
 
         // MESH NORMAL FOR TESTING
-        // let mat = new THREE.MeshNormalMaterial({
-        //   transparent: true
-        // });
+        let mat = new THREE.MeshPhongMaterial({
+          color: 'white',
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          opacity: 0
+        });
 
-        // const {charGeo, width, height} = letterGeometries[letter]; 
-        // const textPts = charGeo
-        //     ? new THREE.Mesh(charGeo, mat)
-        //     : null;
-
-
-        const {charBufferGeo, width, height} = letterGeometries[letter]; 
-        const textPts = charBufferGeo
-            ? new THREE.Points(charBufferGeo, logo_shaderMaterial)
+        const {charGeo, width, height} = letterGeometries[letter]; 
+        const letterMesh = charGeo
+            ? new THREE.Mesh(charGeo, mat)
             : null;
         totalWidth += width;
         maxHeight = Math.max(maxHeight, height);
        return {
-          textPts,
+          letterMesh,
           width
         };    
       }); //finish splitting text
 
-
-      // console.log(letterInfos);
-
       let t = 0;
       const radius = totalWidth / Math.PI;
-      for (const {textPts, width} of letterInfos) {
-        if (textPts) {
-          // console.log(textPts);
+      for (const {letterMesh, width} of letterInfos) {
+        if (letterMesh) {
+          // console.log(letterMesh);
           const offset = new THREE.Object3D();
           lettersBase.add(offset);
-          offset.add(textPts);
+          offset.add(letterMesh);
           offset.rotation.y = t / totalWidth * Math.PI * 2;
-          textPts.position.z = radius;
-          textPts.position.y = -maxHeight / 2;
+          letterMesh.position.z = radius;
+          letterMesh.position.y = -maxHeight / 2;
         }
         t += width;
       }
       
     });
-  }//close bracket
 
-  console.log(lettersBase.children);
-
-  // setTimeout(function(){
-  //   lettersBase.children.forEach( letter =>{
-  //     let op = 1- 2*letter.rotation.y/6
-  //     console.log(letter.children[0].geometry.parameters.text, letter.rotation.y);
-  //     letter.children[0].material.opacity = op;
-  //   });
-  // }, 1000);
-
-
+    setTimeout(appearText, 1000);
 }
 
+function appearText(){
+
+  console.log(lettersBase);
+  lettersBase.children.forEach(l=>{
+    // let letteropacity = l.children[0].material.opacity;
+    
+    // l.children[0].material.opacity = 1.0;
+
+    let fadeinTxt = new TWEEN.Tween(l.children[0].material)
+    .to({opacity: 1.0}, 4000)
+    .repeat(1)
+    .yoyo(true)
+    .delay(100)
+    .repeatDelay(20000)
+    .start()
+
+  });
+
+  // let rotateTxt = new TWEEN.Tween(lettersBase.rotation)
+  //   .onStart(function(){
+
+  //     console.log (lettersBase.rotation);
+  //   })
+  //   .to({y: lettersBase.rotation.y - Math.PI}, 3000)
+  //   .onComplete(function() {console.log('finished rotation', lettersBase.rotation)})
+  //   .start();
+
+  // console.log(l.children[0].material.opacity);
+   
+}
+
+function animateText(time){
+  // console.log(time);
+  if (time > 10 && time < 300){
+    lettersBase.rotation.y = time * -0.02;
+  }
+  
+}
 
 
 //ANIMATE
 
 let start = Date.now();
+let time = Date.now() * 0.003;
 // const clock = new Clock();
 // const delta = clock.getDelta();
-
-
-function animateText(time){
-  const letterCount = lettersBase.children.length;
-  // console.log(letterInfos);
-  // console.log(lettersBase);
-
-  for ( let i = 0; i < letterCount; i ++ ) {
-      const letterObj = lettersBase.children[ i ].children[0];
-
-      const letterPos = lettersBase.children[ i ].rotation.y; 
-      // console.log(letterPos); //0–6
-
-      if ( letterObj instanceof THREE.Points ) {
-       
-        const letter_alphas = letterObj.geometry.attributes.alpha;   
-        const letter_sizes = letterObj.geometry.attributes.size;
-        
-        
-        const count = letter_alphas.count; 
-        for( let j = 0; j < count; j ++ ) {
-
-            // let alphadiff = 1 - (letterPos/6) );
-            // letter_alphas.array[j] =  1 + Math.sin( 0.5 * j + time ) ;     
-            // letter_sizes.array[j] = 5  * ( 1 + Math.sin( 2 * j + time ) );        
-        }
-        letter_alphas.needsUpdate = true; 
-        // letter_sizes.needsUpdate = true;
-    }
-  }
-
-  lettersBase.rotation.y = time * -0.05;
-
-  lettersBase.children.forEach( letter =>{
-    // let op = 1 - 2*letter.rotation.y/6;
-    // console.log(letter.children[0].geometry.parameters.text, letter.rotation.y);
-    letter.children[0].material.opacity = 0.01;
-  });
-
-
-  // console.log(lettersBase.rotation.y);
-
-}
 
 function animateStars(){
   starSystem.position.z += 0.4;
@@ -675,25 +602,14 @@ function animation() {
   
   // animation.timeScale = 1/5 ; 
 
-  let time = Date.now() * 0.003;
+ 
   let diff = (Date.now()-start)* 0.01;
 
   // console.log(diff); 
 
   animateStars();
-
-  if (diff > 10){
-
-    animateText(time)
-
-    // animateLogo(time);
-  }
-  // rotate letters
-  
-
-  
-  
-
+  animateText(diff);
+  animateLogo(diff);
   animateSmoke(Date.now());
 
 
@@ -719,8 +635,8 @@ function animateLogo(time){
         const count = logopt_alphas.count; 
         for( let j = 0; j < count; j ++ ) {
             // dynamically change alphas and sizes
-            logopt_alphas.array[j] = 0.5 + Math.sin( 2 * j + time ) ;
-            logopt_sizes.array[j] = 0.5 * ( 1 + Math.sin( 5 * j + time ) );
+            logopt_alphas.array[j] = 1.0 + Math.sin( 2 * j + time ) ;
+            logopt_sizes.array[j] = 1.0 * ( 1 + Math.sin( 5 * j + time ) );
             // logopt_positions.array[j] = time * Math.random() * 1000; 
         }
 
