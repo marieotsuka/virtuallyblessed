@@ -45,13 +45,14 @@ function createWorld() {
   //---
   scene = new THREE.Scene();
   // scene.fog = new THREE.Fog(0x000000, 5, 15);
-  scene.background = new THREE.Color('rgb(0,10,28)');
+  // scene.background = new THREE.Color('rgb(0,10,28)');
 
   camera = new THREE.PerspectiveCamera(100, _width/_height, 0.0001, 10000);
   scene.add(camera);
   
   const canvas = document.querySelector('#canvas');
-  renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true});
+  renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true, alpha: true});
+  renderer.setClearColor( 'rgb(0,10,28)', 0.8 );
   renderer.setSize(_width, _height);
 
   // document.body.appendChild(renderer.domElement);

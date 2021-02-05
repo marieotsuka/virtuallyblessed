@@ -12,12 +12,9 @@
 	<main>
 
 		<section id="overlay">
-			<div id="starfield">
-				<canvas id="canvas">
+			<canvas id="canvas">
 
-				</canvas>	
-
-			</div>
+			</canvas>	
 			<!-- <div id="content">
 				<div class="header">
 					Virtually Blessed
@@ -76,11 +73,11 @@
 
       attribute float size;
       attribute float alpha;
-
+     
       varying float vAlpha;
 
       void main() {
-
+          
           vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
 
           vAlpha = alpha;
