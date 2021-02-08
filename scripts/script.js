@@ -22,7 +22,7 @@ function init() {
   // createSmoke();
 
   createText();
-  // createLogo();
+  createLogo();
 
   scene.add(sphereGroup);
   sphereGroup.position.set(0,0,-4);
@@ -305,12 +305,202 @@ let logo_shaderMaterial = new THREE.ShaderMaterial(
   vertexShader:   document.getElementById( 'pts_vertexshader' ).textContent,
   fragmentShader: document.getElementById( 'pts_fragmentshader' ).textContent,
   blending: THREE.AdditiveBlending,
-  transparent: true
+  transparent: true,
+  wireframe: true
 });
 
 
-let vbLogo;
+let vbLogo, logo_points, logoTotalPointCount;
 let logoAllPoints = [];
+function createLogo(){
+
+  vbLogo = new THREE.BufferGeometry();
+  // instantiate a loader
+  const loader = new SVGLoader();
+
+  const logoPointCount = 250;
+  // load a SVG resource
+  loader.load(
+    // resource URL
+    '/vb_logo.svg',
+    // called when the resource is loaded
+    function ( data ) {
+      // console.log(data);
+      const paths = data.paths;
+
+      for ( let p = 0; p < paths.length; p ++ ) {
+
+        const path = paths[ p ];
+        
+        const shapes = path.toShapes( true );
+        
+        for ( let s = 0; s < shapes.length; s ++ ) {
+          const s_shape = shapes[ s ];
+          const logoPath_geometry = new THREE.ShapeGeometry( s_shape );
+
+          logoPath_geometry.computeBoundingBox();
+          logoPath_geometry.computeVertexNormals();
+
+          let pointCount = logoPointCount+Math.random()*logoPointCount;
+          if(p<3){
+            pointCount = logoPointCount*4+Math.random()*logoPointCount;
+          }else if(p<6){
+            pointCount = logoPointCount*5+Math.random()*logoPointCount;
+          }
+          fillWithPoints(logoPath_geometry, pointCount);
+
+          let logo_vertices = [];
+
+          logoPath_geometry.vertices.forEach(function(vertex) {
+            vertex.startPoint = vertex.clone();
+            vertex.direction = vertex.clone().normalize();
+            logo_vertices.push(vertex.x, vertex.y, vertex.z);
+            logoAllPoints.push(vertex.x*0.15, vertex.y*-0.15, vertex.z*0.15);
+          });
+        }
+      }
+      
+      //make Logo points
+      setTimeout(makeLogo(), 2000);
+    },      
+    // called when loading is in progresses
+    function ( xhr ) {
+      console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+    },
+    // called when loading has errors
+    function ( error ) {
+      console.log( 'An error happened', error );
+    }
+  );
+
+  // logo_points.scale.multiplyScalar(10);
+  
+  // let logoScaleTarget = new THREE.Vector3(0.15,-0.15,0.15);
+
+  // let logoPosTarget = new THREE.Vector3(-3, 3, 0);
+  // setTimeout(function(){
+  //     console.log(logoAllPoints);
+
+  //     let test = new THREE.PointsMaterial();
+
+  //     // logo_points.scale.multiplyScalar(10);
+  //     // vbLogo.position.set(-0.5, 0.5, 0);
+    
+  //   // let vbLogoScaleIn = new TWEEN.Tween(vbLogo.scale)
+  //   //   .to(logoScaleTarget, 1200)
+  //   //   .easing(TWEEN.Easing.Cubic.InOut)
+  //   //   .delay(1000) //25500
+  //   //   .onStart(function(){
+  //   //     let vbLogoPosIn = new TWEEN.Tween(vbLogo.position)
+  //   //       .easing(TWEEN.Easing.Cubic.InOut)
+  //   //       .to(logoPosTarget, 1200)
+  //   //       .start();
+  //   //   })
+  //   //   .start();
+   
+  //     // createSmoke();
+      
+  // }, 1000)
+
+}
+
+
+function makeLogo(){
+    
+    vbLogo.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(logoAllPoints), 3 ) );
+    
+    logoTotalPointCount = vbLogo.attributes.position.count;
+    const alphas = new Float32Array( logoTotalPointCount * 1 ); // 1 values per vertex
+    const sizes = new Float32Array( logoTotalPointCount * 1 ); // 1 values per vertex
+
+    for( var i = 0; i < logoTotalPointCount; i ++ ) {
+        // set alpha randomly
+        alphas[ i ] = Math.random();
+        sizes[ i ] = Math.random()*2;
+    }
+
+    vbLogo.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
+    vbLogo.setAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
+
+    logo_points = new THREE.Points(vbLogo, logo_shaderMaterial);
+
+  //   // logo_points.position.set(-2.75, 3, -10);
+  //   logo_points.scale.multiplyScalar(1.5) 
+    sphereGroup.add( logo_points );
+
+  //   console.log(vbLogo);
+  // }, 500);
+
+}
+
+let simplex = new FastSimplexNoise();
+function animateLogo(time){
+      // vbLogo.scale.set(0.01,0.01,0.01);
+      // vbLogo.position.set(-0.5, 0.5, -50);
+
+    // console.log('animate smoke');
+    const logopt_alphas = vbLogo.attributes.alpha;   
+    const logopt_sizes = vbLogo.attributes.size;
+    const logopt_positions = vbLogo.attributes.position;
+    const logopt_orig_positions = logopt_positions;
+    
+    const count = logopt_alphas.count; 
+
+    let timedif = 0.00003*(time*10-start);
+      
+    let noiseScale = 0.09;
+    let noiseTime = timedif * 0.00001;
+    let noiseVelocity = 0.2;
+    let k = 0.5;
+
+    let pos = logopt_positions.array;
+
+    for( let j = 0; j < count; j ++ ) {
+        
+         // console.log(pos);
+        
+        // dynamically change sizes
+        logopt_sizes.array[j] = 1.2 * ( 1 + Math.sin( 5 * j + time*10 ) );
+
+        // pos[j] = Math.random();
+        let xScaled = pos[j * 3 + 0] * noiseScale;
+        let yScaled = pos[j * 3 + 1] * noiseScale;
+        let zScaled = pos[j * 3 + 2] * noiseScale;
+
+        let noise1 = simplex.getRaw4DNoise(
+          xScaled,
+          yScaled,
+          zScaled,
+          noiseTime
+        )* k + k;
+
+        let noise2 = simplex.getRaw4DNoise(
+          xScaled + 0.1,
+          yScaled + 0.1,
+          zScaled + 0.1,
+          0.5 + noiseTime
+        )* k + k;
+
+        let noise3 = simplex.getRaw4DNoise(
+          xScaled + 0.2,
+          yScaled + 0.2,
+          zScaled + 0.2,
+          1.0 + noiseTime
+        )* k + k;
+
+
+        pos[j * 3 + 0] += Math.sin(noise1 * Math.PI * 2) * noiseVelocity * timedif;
+        pos[j * 3 + 1] += Math.sin(noise2 * Math.PI * 2) * noiseVelocity * timedif;
+        pos[j * 3 + 2] += Math.sin(noise3 * Math.PI * 2) * noiseVelocity * timedif;
+        // // logopt_positions.array[j] = time * Math.random() * 1000; 
+    }
+
+    logopt_positions.needsUpdate = true;
+    logopt_sizes.needsUpdate = true;
+    
+}
+
+
 
 // ADD ANIMATION
 
@@ -344,71 +534,38 @@ function appearText(){
 function animateText(time){
   // console.log(time);
   for ( let i = 0; i < lettersBase.children.length; i ++ ) {
-        const  logoPoints = lettersBase.children[ i ].children[0];
+        const  letterPts = lettersBase.children[ i ].children[0];
 
-        if ( logoPoints instanceof THREE.Points ) {
-          // console.log(logoPoints);
+        if ( letterPts instanceof THREE.Points ) {
+          // console.log(letterPts);
 
-          const logopt_alphas = logoPoints.geometry.attributes.alpha;   
-          const logopt_sizes = logoPoints.geometry.attributes.size;
-          const logopt_positions = logoPoints.geometry.attributes.position;
-          const logopt_orig_positions = logopt_positions;
+          const letter_alphas = letterPts.geometry.attributes.alpha;   
+          const letter_sizes = letterPts.geometry.attributes.size;
+          const letter_positions = letterPts.geometry.attributes.position;
           
-          const count = logopt_alphas.count; 
+          const count = letter_alphas.count; 
 
           for( let j = 0; j < count; j ++ ) {
               // dynamically change sizes
               if(time<2){
-                logopt_alphas.array[j] = time * 0.5;
+                letter_alphas.array[j] = time * 0.5;
               }else if (time<20){
-                logopt_alphas.array[j] = 1;
+                letter_alphas.array[j] = 1;
               }else{
-                logopt_alphas.array[j] *= 0.95;
-                if (logopt_alphas.array[j]<0){
-                  logopt_alphas.array[j] = 0;
+                letter_alphas.array[j] *= 0.95;
+                if (letter_alphas.array[j]<0){
+                  letter_alphas.array[j] = 0;
                 }
               }
-              logopt_sizes.array[j] = 1.2 * ( 1 + Math.sin( 5 * j + time*10 ) );
-              // logopt_positions.array[j] = time * Math.random() * 1000; 
+              letter_sizes.array[j] = 1.2 * ( 1 + Math.sin( 5 * j + time*10 ) );
+              // letter_positions.array[j] = time * Math.random() * 1000; 
           }
 
-          logopt_alphas.needsUpdate = true;
-          logopt_sizes.needsUpdate = true;
+          letter_alphas.needsUpdate = true;
+          letter_sizes.needsUpdate = true;
           
-         
-          // logoPoints.geometry.verticesNeedUpdate = true;
-
-          // positions.needsUpdate = true; // important!
-          // console.log(logoPoints);
-
-
-          // logoPoints.geometry.attributes.forEach(v =>{
-          //   v.y = v.startPoint.y + Math.random() * delta;
-          //   v.x = v.startPoint.x + Math.random() * delta;
-          // }); 
-
-          
-
-
-    //         logoPoints.material.opacity = Math.random();
-
-    //         // logoPoints.rotation.y = Math.random() * 0.01;  
-    //         logoPoints.geometry.vertices.forEach(v =>{
-    //           v.y = v.startPoint.y + Math.random() * delta;
-    //           v.x = v.startPoint.x + Math.random() * delta;
-    //         }); 
-
-    //         logoPoints.geometry.verticesNeedUpdate = true;
         }
-      }
-
-  // console.log(lettersBase);
-  // console.log(lettersBase.children[0].children[0].rotation);
-
-  // if (time > 10 && time < 280){
-  //   lettersBase.rotation.y = time * -0.02;
-  // }
-  
+      }  
 }
 
 let start = Date.now();
@@ -420,12 +577,13 @@ function animation() {
   }, 1000 / 30 );
 
  
-  let diff = (Date.now()-start)* 0.001;
-        // console.log(clock);
+  let diff = (Date.now()-start)* 0.001; //seconds
+  // console.log(clock);
   // animateStars();
   animateText(diff);
-  // animateLogo(diff);
-  // setTimeout( animateSmoke(Date.now()),1000);
+ 
+  setTimeout(  animateLogo(diff),
+    3000);
 
   TWEEN.update();
   renderer.render(scene, camera);
