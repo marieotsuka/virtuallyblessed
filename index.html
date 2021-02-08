@@ -73,13 +73,12 @@
 
       attribute float size;
       attribute float alpha;
-     
       varying float vAlpha;
 
       void main() {
           
           vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-
+          
           vAlpha = alpha;
 
           gl_PointSize = size;
@@ -89,18 +88,50 @@
   </script>
 
   <script type="x-shader/x-fragment" id="pts_fragmentshader">
-
       uniform vec3 color;
 
       varying float vAlpha;
+      varying float vVisible;
 
       void main() {
 
           gl_FragColor = vec4( color, vAlpha );
 
       }
-
   </script>
+
+
+
+  <script type="x-shader/x-vertex" id="txt_vertexshader">
+
+      attribute float size;
+      attribute float alpha;
+      varying float vAlpha;
+
+      void main() {
+          
+          vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+          vAlpha = alpha + (mvPosition.z * 0.5);
+          gl_PointSize = size;
+          gl_Position = projectionMatrix * mvPosition;
+      }
+  </script>
+
+  <script type="x-shader/x-fragment" id="txt_fragmentshader">
+      uniform vec3 color;
+      varying float vAlpha;
+
+      void main() {
+
+          gl_FragColor = vec4( color, vAlpha );
+          
+      }
+  </script>
+
+
+
+
+
 
 
 
