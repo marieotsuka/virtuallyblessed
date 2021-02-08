@@ -10,7 +10,8 @@ window.addEventListener('load', init, false);
 let scene, camera, renderer, container;
 let _width, _height;
 
-const animationDuration = 35000;
+const durationSeconds = 35;
+const animationDuration = durationSeconds*1000;
 
 let sphereGroup = new THREE.Group(); //everything related to orb
 
@@ -296,7 +297,17 @@ function createText( ){
 
 // values that are constant for all particles during a draw call
 let logo_uniforms = {
-    color: { value: new THREE.Color( 'white' ) },
+    color: { 
+      value: new THREE.Color( 'white' ) 
+    },
+    elapsedTime : {
+        type: "f",
+        value: 0.0
+    },
+    duration : {
+        type: "f",
+        value: 5.0
+    }
 };
       
 let logo_shaderMaterial = new THREE.ShaderMaterial( 
@@ -312,13 +323,17 @@ let logo_shaderMaterial = new THREE.ShaderMaterial(
 
 let vbLogo, logo_points, logoTotalPointCount;
 let logoAllPoints = [];
+
+let smokeParticles = new THREE.Object3D();
+// smokeParticles.scale.set(0.2, 0.2, 0.2);
+
 function createLogo(){
 
   vbLogo = new THREE.BufferGeometry();
   // instantiate a loader
   const loader = new SVGLoader();
 
-  const logoPointCount = 250;
+  const logoPointCount = 300;
   // load a SVG resource
   loader.load(
     // resource URL
@@ -361,7 +376,8 @@ function createLogo(){
       }
       
       //make Logo points
-      setTimeout(makeLogo(), 2000);
+      makeLogo();
+ 
     },      
     // called when loading is in progresses
     function ( xhr ) {
@@ -404,37 +420,48 @@ function createLogo(){
 
 }
 
-
+let tSize = 1;
 function makeLogo(){
     
-    vbLogo.setAttribute( 'position', new THREE.BufferAttribute( new Float32Array(logoAllPoints), 3 ) );
     
-    logoTotalPointCount = vbLogo.attributes.position.count;
+    logoTotalPointCount = logoAllPoints.length/3;
+
     const alphas = new Float32Array( logoTotalPointCount * 1 ); // 1 values per vertex
     const sizes = new Float32Array( logoTotalPointCount * 1 ); // 1 values per vertex
+    const positions = new Float32Array( logoTotalPointCount * 3 ); // 1 values per vertex
 
     for( var i = 0; i < logoTotalPointCount; i ++ ) {
         // set alpha randomly
         alphas[ i ] = Math.random();
         sizes[ i ] = Math.random()*2;
+        
+        positions[i * 3 + 0] = Math.random() * 2*tSize - tSize;
+        positions[i * 3 + 1] = Math.random() * 2*tSize - tSize;
+        positions[i * 3 + 2] = Math.random() * 2*tSize - tSize;
     }
 
     vbLogo.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
     vbLogo.setAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
+    vbLogo.setAttribute( 'position', new THREE.BufferAttribute(positions, 3 ) );
+    
+    vbLogo.setAttribute( 'targetPosition', new THREE.BufferAttribute( new Float32Array(logoAllPoints), 3 ) );
+    
 
     logo_points = new THREE.Points(vbLogo, logo_shaderMaterial);
+    vbLogo.center();
 
-  //   // logo_points.position.set(-2.75, 3, -10);
-  //   logo_points.scale.multiplyScalar(1.5) 
-    sphereGroup.add( logo_points );
-
-  //   console.log(vbLogo);
-  // }, 500);
+    smokeParticles.add( logo_points );    
+    sphereGroup.add(smokeParticles);
+    smokeParticles.scale.set(1.0,1.0,1.0);
+    console.log(vbLogo);
 
 }
 
 let simplex = new FastSimplexNoise();
 function animateLogo(time){
+
+    logo_shaderMaterial.needsUpdate = true;
+    logo_shaderMaterial.uniforms.elapsedTime.value = time;
       // vbLogo.scale.set(0.01,0.01,0.01);
       // vbLogo.position.set(-0.5, 0.5, -50);
 
@@ -442,16 +469,16 @@ function animateLogo(time){
     const logopt_alphas = vbLogo.attributes.alpha;   
     const logopt_sizes = vbLogo.attributes.size;
     const logopt_positions = vbLogo.attributes.position;
-    const logopt_orig_positions = logopt_positions;
+    const logopt_next_positions = vbLogo.attributes.targetPosition;
     
-    const count = logopt_alphas.count; 
+    const count = logoTotalPointCount; 
 
-    let timedif = 0.00003*(time*10-start);
+    
       
-    let noiseScale = 0.09;
-    let noiseTime = timedif * 0.00001;
-    let noiseVelocity = 0.2;
-    let k = 0.5;
+    let noiseScale = 2.0; //1.5
+    let noiseTime = time; //0.000001
+    let noiseVelocity = 0.001;
+    let k = 1.2;
 
     let pos = logopt_positions.array;
 
@@ -463,41 +490,42 @@ function animateLogo(time){
         logopt_sizes.array[j] = 1.2 * ( 1 + Math.sin( 5 * j + time*10 ) );
 
         // pos[j] = Math.random();
-        let xScaled = pos[j * 3 + 0] * noiseScale;
-        let yScaled = pos[j * 3 + 1] * noiseScale;
-        let zScaled = pos[j * 3 + 2] * noiseScale;
+        let xScaled = pos[j * 3 + 0] * noiseScale * noiseTime;
+        let yScaled = pos[j * 3 + 1] * noiseScale * noiseTime;
+        let zScaled = pos[j * 3 + 2] * noiseScale * noiseTime;
 
         let noise1 = simplex.getRaw4DNoise(
           xScaled,
           yScaled,
           zScaled,
           noiseTime
-        )* k + k;
+        )* k;
 
         let noise2 = simplex.getRaw4DNoise(
-          xScaled + 0.1,
-          yScaled + 0.1,
-          zScaled + 0.1,
-          0.5 + noiseTime
-        )* k + k;
+          xScaled + 1,
+          yScaled + 1,
+          zScaled + 1,
+          50+noiseTime
+        )* k;
 
         let noise3 = simplex.getRaw4DNoise(
-          xScaled + 0.2,
-          yScaled + 0.2,
-          zScaled + 0.2,
-          1.0 + noiseTime
-        )* k + k;
+          xScaled + 2,
+          yScaled + 2,
+          zScaled + 2,
+          100+noiseTime
+        )* k;
 
 
-        pos[j * 3 + 0] += Math.sin(noise1 * Math.PI * 2) * noiseVelocity * timedif;
-        pos[j * 3 + 1] += Math.sin(noise2 * Math.PI * 2) * noiseVelocity * timedif;
-        pos[j * 3 + 2] += Math.sin(noise3 * Math.PI * 2) * noiseVelocity * timedif;
+        pos[j * 3 + 0] += Math.sin(noise1 * Math.PI) * noiseVelocity ;
+        pos[j * 3 + 1] += Math.sin(noise2 * Math.PI) * noiseVelocity ;
+        pos[j * 3 + 2] += Math.sin(noise3 * Math.PI) * noiseVelocity ;
         // // logopt_positions.array[j] = time * Math.random() * 1000; 
     }
 
     logopt_positions.needsUpdate = true;
     logopt_sizes.needsUpdate = true;
-    
+  
+    smokeParticles.rotation.y = time;
 }
 
 
@@ -549,7 +577,7 @@ function animateText(time){
               // dynamically change sizes
               if(time<2){
                 letter_alphas.array[j] = time * 0.5;
-              }else if (time<20){
+              }else if (time<durationSeconds){
                 letter_alphas.array[j] = 1;
               }else{
                 letter_alphas.array[j] *= 0.95;
@@ -578,12 +606,12 @@ function animation() {
 
  
   let diff = (Date.now()-start)* 0.001; //seconds
-  // console.log(clock);
+        // console.log(clock);
   // animateStars();
   animateText(diff);
  
   setTimeout(  animateLogo(diff),
-    3000);
+    2000);
 
   TWEEN.update();
   renderer.render(scene, camera);
