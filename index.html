@@ -70,28 +70,25 @@
 
 
   <script type="x-shader/x-vertex" id="pts_vertexshader">
+  	attribute float size;
+  	attribute float alpha;
 
-      attribute float size;
-      attribute float alpha;
-      varying float vAlpha;
+  	varying float vAlpha;
 
-      void main() {
-          
-          vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-          
-          vAlpha = alpha;
+  	void main(){
 
-          gl_PointSize = size;
+  	    vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+        vAlpha = alpha;
+        gl_PointSize = size;
+        gl_Position = projectionMatrix * mvPosition;
+  	}
 
-          gl_Position = projectionMatrix * mvPosition;
-      }
   </script>
 
   <script type="x-shader/x-fragment" id="pts_fragmentshader">
       uniform vec3 color;
 
       varying float vAlpha;
-      varying float vVisible;
 
       void main() {
 
@@ -100,7 +97,63 @@
       }
   </script>
 
+  <script type="x-shader/x-vertex" id="p_vertexshader">
+  	attribute float size;
+  	attribute float alpha;
 
+  	varying float vAlpha;
+
+	uniform float elapsedTime;
+	uniform float duration;
+	attribute vec3 targetPosition;
+
+
+	float exponentialInOut( float k ){
+
+	    if( k <= 0.0 ){
+	        return 0.0;
+	    }
+	    else if( k >= 1.0 ){
+	        return 1.0;
+	    }
+	    else if( ( k *= 2.0 ) < 1.0 ){
+	        return 0.5 * pow( 1024.0, k - 1.0 );
+	    }
+	    return 0.5 * ( - pow( 2.0, - 10.0 * ( k - 1.0 ) ) + 2.0 );
+	}
+
+	void main(){
+
+	    float t = elapsedTime / (duration * 1.2);
+
+	    float progress = exponentialInOut( t );
+
+	    vec3 delta = targetPosition - position;
+
+	   	vec3 newPosition = position + delta * progress;
+
+		if(elapsedTime > duration){
+	    	newPosition = targetPosition;
+		}
+
+	    vAlpha = alpha;
+
+        gl_PointSize = size;
+	    gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+	}
+</script>
+
+ <script type="x-shader/x-fragment" id="p_fragmentshader">
+      uniform vec3 color;
+      varying float vAlpha;
+
+      void main() {
+
+          gl_FragColor = vec4( color, vAlpha );
+
+      }
+
+  </script>
 
   <script type="x-shader/x-vertex" id="txt_vertexshader">
 
@@ -127,9 +180,6 @@
           
       }
   </script>
-
-
-
 
 
 

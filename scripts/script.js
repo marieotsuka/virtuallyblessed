@@ -10,7 +10,7 @@ window.addEventListener('load', init, false);
 let scene, camera, renderer, container;
 let _width, _height;
 
-const durationSeconds = 35;
+const durationSeconds = 25;
 const animationDuration = durationSeconds*1000;
 
 let sphereGroup = new THREE.Group(); //everything related to orb
@@ -190,7 +190,7 @@ function createText( ){
     };
     
     const size = new THREE.Vector3();
-    const str = '   For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful.        ';
+    const str = '   For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful..        ';
     
     letterInfos = str.split('').map((letter, ndx) => {
       //store each letter's shapes if it hasn't been stored yet
@@ -306,15 +306,15 @@ let logo_uniforms = {
     },
     duration : {
         type: "f",
-        value: 5.0
+        value: 0.0
     }
 };
       
 let logo_shaderMaterial = new THREE.ShaderMaterial( 
 {
   uniforms: logo_uniforms,
-  vertexShader:   document.getElementById( 'pts_vertexshader' ).textContent,
-  fragmentShader: document.getElementById( 'pts_fragmentshader' ).textContent,
+  vertexShader:   document.getElementById( 'p_vertexshader' ).textContent,
+  fragmentShader: document.getElementById( 'p_fragmentshader' ).textContent,
   blending: THREE.AdditiveBlending,
   transparent: true,
   wireframe: true
@@ -370,7 +370,7 @@ function createLogo(){
             vertex.startPoint = vertex.clone();
             vertex.direction = vertex.clone().normalize();
             logo_vertices.push(vertex.x, vertex.y, vertex.z);
-            logoAllPoints.push(vertex.x*0.15, vertex.y*-0.15, vertex.z*0.15);
+            logoAllPoints.push(vertex.x*0.15 - 2.75, vertex.y*-0.15 + 2.5, vertex.z*0.15);
           });
         }
       }
@@ -382,6 +382,7 @@ function createLogo(){
     // called when loading is in progresses
     function ( xhr ) {
       console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+      
     },
     // called when loading has errors
     function ( error ) {
@@ -389,56 +390,38 @@ function createLogo(){
     }
   );
 
-  // logo_points.scale.multiplyScalar(10);
-  
-  // let logoScaleTarget = new THREE.Vector3(0.15,-0.15,0.15);
 
-  // let logoPosTarget = new THREE.Vector3(-3, 3, 0);
-  // setTimeout(function(){
-  //     console.log(logoAllPoints);
-
-  //     let test = new THREE.PointsMaterial();
-
-  //     // logo_points.scale.multiplyScalar(10);
-  //     // vbLogo.position.set(-0.5, 0.5, 0);
-    
-  //   // let vbLogoScaleIn = new TWEEN.Tween(vbLogo.scale)
-  //   //   .to(logoScaleTarget, 1200)
-  //   //   .easing(TWEEN.Easing.Cubic.InOut)
-  //   //   .delay(1000) //25500
-  //   //   .onStart(function(){
-  //   //     let vbLogoPosIn = new TWEEN.Tween(vbLogo.position)
-  //   //       .easing(TWEEN.Easing.Cubic.InOut)
-  //   //       .to(logoPosTarget, 1200)
-  //   //       .start();
-  //   //   })
-  //   //   .start();
-   
-  //     // createSmoke();
-      
-  // }, 1000)
 
 }
 
-let tSize = 1;
+let tSize = 1.0;
 function makeLogo(){
     
-    
+
     logoTotalPointCount = logoAllPoints.length/3;
 
     const alphas = new Float32Array( logoTotalPointCount * 1 ); // 1 values per vertex
     const sizes = new Float32Array( logoTotalPointCount * 1 ); // 1 values per vertex
-    const positions = new Float32Array( logoTotalPointCount * 3 ); // 1 values per vertex
+    const positions = new Float32Array( logoTotalPointCount * 3);
 
     for( var i = 0; i < logoTotalPointCount; i ++ ) {
         // set alpha randomly
         alphas[ i ] = Math.random();
         sizes[ i ] = Math.random()*2;
         
-        positions[i * 3 + 0] = Math.random() * 2*tSize - tSize;
-        positions[i * 3 + 1] = Math.random() * 2*tSize - tSize;
-        positions[i * 3 + 2] = Math.random() * 2*tSize - tSize;
+        var vec3 = new THREE.Vector3();
+        vec3.x = THREE.Math.randFloatSpread(1);
+        vec3.y = THREE.Math.randFloatSpread(1);
+        vec3.z = THREE.Math.randFloatSpread(1);
+        vec3.setLength(tSize);
+        // vec3.toArray(positions);
+
+        positions[i*3+0]  = vec3.x;
+        positions[i*3+1]  = vec3.y;
+        positions[i*3+2]  = vec3.z;
     }
+
+    // console.log(positions);
 
     vbLogo.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
     vbLogo.setAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
@@ -449,10 +432,11 @@ function makeLogo(){
 
     logo_points = new THREE.Points(vbLogo, logo_shaderMaterial);
     vbLogo.center();
-
+    // vbLogo.postion.y = 1;
     smokeParticles.add( logo_points );    
     sphereGroup.add(smokeParticles);
-    smokeParticles.scale.set(1.0,1.0,1.0);
+    smokeParticles.scale.set(0.8,0.8,0.8);
+    smokeParticles.position.y = 1.0;
     console.log(vbLogo);
 
 }
@@ -460,39 +444,39 @@ function makeLogo(){
 let simplex = new FastSimplexNoise();
 function animateLogo(time){
 
-    logo_shaderMaterial.needsUpdate = true;
     logo_shaderMaterial.uniforms.elapsedTime.value = time;
-      // vbLogo.scale.set(0.01,0.01,0.01);
-      // vbLogo.position.set(-0.5, 0.5, -50);
+    logo_shaderMaterial.uniforms.duration.value = durationSeconds;
+    logo_shaderMaterial.needsUpdate = true; 
 
-    // console.log('animate smoke');
     const logopt_alphas = vbLogo.attributes.alpha;   
     const logopt_sizes = vbLogo.attributes.size;
     const logopt_positions = vbLogo.attributes.position;
     const logopt_next_positions = vbLogo.attributes.targetPosition;
     
     const count = logoTotalPointCount; 
-
-    
       
-    let noiseScale = 2.0; //1.5
-    let noiseTime = time; //0.000001
-    let noiseVelocity = 0.001;
-    let k = 1.2;
+    let noiseScale = 0.6;
+    let noiseTime = time * 0.01;
+    let noiseVelocity = 0.01;
+    let k = 0.9;
 
     let pos = logopt_positions.array;
-
+ 
     for( let j = 0; j < count; j ++ ) {
-        
-         // console.log(pos);
-        
-        // dynamically change sizes
-        logopt_sizes.array[j] = 1.2 * ( 1 + Math.sin( 5 * j + time*10 ) );
+          
+      // dynamically change sizes
+      logopt_sizes.array[j] = 1.0 * ( 1 + Math.sin( 5 * j + time*10 ) );
+
+      // if(time>10){
+      //   // pos[j * 3 + 0] = logopt_next_positions.array[j * 3 + 0] ;
+      //   // pos[j * 3 + 1] = logopt_next_positions.array[j * 3 + 1] ;
+      //   // pos[j * 3 + 2] = logopt_next_positions.array[j * 3 + 2] ;
+      // }else{
 
         // pos[j] = Math.random();
-        let xScaled = pos[j * 3 + 0] * noiseScale * noiseTime;
-        let yScaled = pos[j * 3 + 1] * noiseScale * noiseTime;
-        let zScaled = pos[j * 3 + 2] * noiseScale * noiseTime;
+        let xScaled = pos[j * 3 + 0] * noiseScale; 
+        let yScaled = pos[j * 3 + 1] * noiseScale;
+        let zScaled = pos[j * 3 + 2] * noiseScale;
 
         let noise1 = simplex.getRaw4DNoise(
           xScaled,
@@ -505,27 +489,28 @@ function animateLogo(time){
           xScaled + 1,
           yScaled + 1,
           zScaled + 1,
-          50+noiseTime
+          5+noiseTime
         )* k;
 
         let noise3 = simplex.getRaw4DNoise(
           xScaled + 2,
           yScaled + 2,
           zScaled + 2,
-          100+noiseTime
+          10+noiseTime
         )* k;
 
 
         pos[j * 3 + 0] += Math.sin(noise1 * Math.PI) * noiseVelocity ;
         pos[j * 3 + 1] += Math.sin(noise2 * Math.PI) * noiseVelocity ;
         pos[j * 3 + 2] += Math.sin(noise3 * Math.PI) * noiseVelocity ;
-        // // logopt_positions.array[j] = time * Math.random() * 1000; 
-    }
+        
+      }
 
     logopt_positions.needsUpdate = true;
     logopt_sizes.needsUpdate = true;
   
-    smokeParticles.rotation.y = time;
+    
+    
 }
 
 
