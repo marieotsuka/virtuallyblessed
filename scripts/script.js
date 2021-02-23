@@ -10,8 +10,21 @@ window.addEventListener('load', init, false);
 let scene, camera, renderer, container;
 let _width, _height;
 
-const durationSeconds = 25;
+const durationSeconds = 30;
 const animationDuration = durationSeconds*1000;
+
+const colors = [
+'rgb(240, 255, 250)',
+'rgb(255, 255, 255)',
+'rgb(250, 250, 255)'
+]
+
+let glow = new THREE.Color( colors[0]);
+
+function glowColor(){
+  let i = Math.floor(Math.random() * colors.length);
+  return new THREE.Color( colors[i] );
+}
 
 let sphereGroup = new THREE.Group(); //everything related to orb
 
@@ -24,9 +37,13 @@ function init() {
 
   createText();
   createLogo();
+  makeExplosion();
 
   scene.add(sphereGroup);
   sphereGroup.position.set(0,0,-4);
+  let _lights = new THREE.PointLight(0xFFFFFF, 2, 150, 100);
+  _lights.position.set(0,0,4);
+  sphereGroup.add(_lights);
 
   animation();
 }
@@ -40,7 +57,7 @@ function createWorld() {
 
   camera = new THREE.PerspectiveCamera(100, _width/_height, 0.0001, 10000);
   scene.add(camera);
-  
+
   const canvas = document.querySelector('#canvas');
   renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true, alpha: true});
   renderer.setClearColor( 'rgb(0,10,28)', 0.8 );
@@ -94,16 +111,16 @@ function createCanvasMaterial(color, size) {
 const starSystem = new THREE.Group();
 let star_points, star_materials = [];
 let starfield, parameters, i, h, color, size;
-let starCount = 3000;
+let starCount = 4000;
 function createStars(){
    
    starfield = new THREE.Geometry();
    
    for (i = 0; i < starCount; i++) {
      let vertex = new THREE.Vector3();
-     vertex.x = Math.random() * 1000 - 500;
-     vertex.y = Math.random() * 1000 - 500;
-     vertex.z = Math.random() * 1000 - 500;
+     vertex.x = Math.random() * 1000 - 300;
+     vertex.y = Math.random() * 1000 - 300;
+     vertex.z = Math.random() * 1000 - 300;
      starfield.vertices.push(vertex);
    }
 
@@ -128,12 +145,12 @@ function createStars(){
 
   for (i = 0; i < parameters.length; i++) {
 
-    color = parameters[i][0];
+    color = glowColor();
     size = parameters[i][1];
-    let hexColor = new THREE.Color(color[0], color[1], color[2]).getHexString();
+    let hexColor = color.getHexString();
     
     star_materials[i] = new THREE.PointsMaterial({
-      size: 1+Math.random()*size,
+      size: 1+Math.random(),
       map: createCanvasMaterial('#'+hexColor, 256),
       transparent: true,
       depthWrite: false
@@ -173,33 +190,43 @@ let txt_shaderMaterial = new THREE.ShaderMaterial(
 });
 
 
-let lettersBase, letterInfos, textMaterial;
+
+
+let lettersBase, letterInfos;
+let textMaterial = new THREE.MeshPhongMaterial({
+  color: glow,
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  side: THREE.FrontSide,
+  opacity: 0.7
+});
+
 function createText( ){
 
   lettersBase = new THREE.Object3D();
   sphereGroup.add(lettersBase);
-  lettersBase.position.y = -0.4;
+  lettersBase.position.y = 0;
   
   const fontLoader = new THREE.FontLoader();
   fontLoader.load('https://threejsfundamentals.org/threejs/resources/threejs/fonts/helvetiker_regular.typeface.json', (font) => {
-    const spaceSize = 0.1;
-    let totalWidth = 0.5; 
+    const spaceSize = 0.03;
+    let totalWidth = 6; 
     let maxHeight = 0;    
     const letterGeometries = {
       ' ': { width: spaceSize, height: 0 }, // prepopulate space ' '
     };
     
     const size = new THREE.Vector3();
-    const str = '   For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful..        ';
+    const str = '   For the item(s) we are about to receive, for those that made it possible, and for those with whom we are about to share it, we are thankful.       ';
     
     letterInfos = str.split('').map((letter, ndx) => {
       //store each letter's shapes if it hasn't been stored yet
       if (!letterGeometries[letter]) {
         const charGeo = new THREE.TextGeometry(letter, {
           font: font,
-          size: 0.14,
-          height: 0.002,
-          wireframe: true,
+          size: 0.10,
+          height: 0.001,
+          wireframe: false,
           curveSegments: 8,
           bevelEnabled: false
         }); 
@@ -209,7 +236,7 @@ function createText( ){
         charGeo.computeFaceNormals();
         charGeo.computeVertexNormals();
 
-        let txt_ptcount = 200;
+        let txt_ptcount = 100;
         fillWithPoints(charGeo, txt_ptcount);
 
          const char_vertices = [];
@@ -231,47 +258,47 @@ function createText( ){
 
           for( var i = 0; i < numVertices; i ++ ) {
               // set alpha randomly
-              alphas[ i ] = 1;
-              sizes[ i ] = 2;
+              alphas[ i ] = Math.random();
+              sizes[ i ] = Math.random()*3;
           }
 
           charBufferGeo.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
           charBufferGeo.setAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
 
           letterGeometries[letter] = {
-              charBufferGeo, //charBufferGeo
+              charBufferGeo, 
+              charGeo,
               width: size.x *0.58, 
               height: size.y,
           };
 
       } //end if       
 
-      // let textMaterial = new THREE.PointsMaterial({
-      //   color: 'white',
-      //   size: 0.001,
-      //   transparent: true,
-      //   blending: THREE.AdditiveBlending,
-      //   opacity: 1
-      // });
+
 
 
       // textMaterial.needsUpdate = true;
 
-      const {charBufferGeo, width, height} = letterGeometries[letter]; 
+      const {charBufferGeo, charGeo, width, height} = letterGeometries[letter]; 
       const letterPoints = charBufferGeo
           ? new THREE.Points(charBufferGeo, txt_shaderMaterial)
+          : null;
+
+      const letterMesh = charGeo
+          ? new THREE.Mesh(charGeo, textMaterial)
           : null;
       totalWidth += width;
       maxHeight = Math.max(maxHeight, height);
      return {
         letterPoints,
+        letterMesh,
         width
       };    
     }); //finish splitting text
 
     let t = 0;
     const radius = totalWidth / Math.PI;
-    for (const {letterPoints, width} of letterInfos) {
+    for (const {letterPoints, letterMesh, width} of letterInfos) {
       if (letterPoints) {
         // console.log(letterPoints);
         const offset = new THREE.Object3D();
@@ -280,6 +307,11 @@ function createText( ){
         offset.rotation.y = t / totalWidth * Math.PI * 2;
         letterPoints.position.z = radius;
         letterPoints.position.y = -maxHeight / 2;
+
+
+        offset.add(letterMesh);
+        letterMesh.position.z = radius;
+        letterMesh.position.y = -maxHeight / 2;
       }
       t += width;
     }
@@ -288,7 +320,6 @@ function createText( ){
 
   setTimeout(appearText, 800);
 }
-
 
 
 //------
@@ -317,7 +348,7 @@ let logo_shaderMaterial = new THREE.ShaderMaterial(
   fragmentShader: document.getElementById( 'p_fragmentshader' ).textContent,
   blending: THREE.AdditiveBlending,
   transparent: true,
-  wireframe: true
+  wireframe: false
 });
 
 
@@ -326,6 +357,7 @@ let logoAllPoints = [];
 
 let smokeParticles = new THREE.Object3D();
 // smokeParticles.scale.set(0.2, 0.2, 0.2);
+let logo_layer = new THREE.Object3D();
 
 function createLogo(){
 
@@ -370,19 +402,50 @@ function createLogo(){
             vertex.startPoint = vertex.clone();
             vertex.direction = vertex.clone().normalize();
             logo_vertices.push(vertex.x, vertex.y, vertex.z);
-            logoAllPoints.push(vertex.x*0.15 - 2.75, vertex.y*-0.15 + 2.5, vertex.z*0.15);
+            logoAllPoints.push(vertex.x*0.15 - 2.75, vertex.y*-0.15 + 2, vertex.z*0.15);
           });
+
+          let logo_shape = new THREE.Mesh(logoPath_geometry, textMaterial);
+          logo_layer.add(logo_shape);
+          // logo_shape.material.opacity = 0;
         }
       }
+
       
-      //make Logo points
+      logo_layer.scale.set(.15, -.15, .15);
+      logo_layer.position.set(-2.75, 2, 0);
+      
+
+      let _logolights = new THREE.PointLight(0xFFFFFF, 1, 40);
+      _logolights.position.set(0, -1, 2);
+
+
+      //add in logo layer at end
+      
+      sphereGroup.add(_logolights);
+
+      setTimeout(function(){
+        
+        let layerappear;
+        console.log(logo_layer);
+        logo_layer.children.forEach(layer =>{
+          layer.material.opacity = 0;
+          let layerappear = new TWEEN.Tween(layer.material)
+          .to({opacity: 0.5},  1000).delay(3000);
+          layerappear.start();
+        });
+        sphereGroup.add(logo_layer);
+      }, animationDuration);
+      
+     
+      //make Logo points on complete
       makeLogo();
- 
+    
+     
     },      
-    // called when loading is in progresses
+    // called when loading is in progress
     function ( xhr ) {
       console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-      
     },
     // called when loading has errors
     function ( error ) {
@@ -394,10 +457,84 @@ function createLogo(){
 
 }
 
-let tSize = 1.0;
+let tSize = 3.0;
+const sphere = new THREE.BufferGeometry();
+let spherePtsCount = 3000;
+let sphere_uniforms = {
+    color: { value: glow }
+};
+let sphere_shaderMaterial = new THREE.ShaderMaterial( 
+{
+  uniforms: sphere_uniforms,
+  vertexShader: document.getElementById( 'pts_vertexshader' ).textContent,
+  fragmentShader: document.getElementById( 'pts_fragmentshader' ).textContent,
+  blending: THREE.AdditiveBlending,
+  transparent: true
+});
+
+function makeExplosion(){
+    // let globe_geometry = new THREE.SphereGeometry( 1.0, 8, 8 );
+
+    // let globe_material = new THREE.MeshBasicMaterial( {
+    //   map: createCanvasMaterial('white', 5.0),
+    //   transparent: true,
+    //   blending: THREE.AdditiveBlending
+    // });
+    // var globe_mesh = new THREE.Mesh( globe_geometry, globe_material );
+    // sphereGroup.add( globe_mesh );
+
+
+
+    const alphas = new Float32Array( spherePtsCount * 1 ); // 1 values per vertex
+    const sizes = new Float32Array( spherePtsCount * 1 ); // 1 values per vertex
+    const positions = new Float32Array( spherePtsCount * 3);
+
+    for( var i = 0; i < spherePtsCount; i ++ ) {
+        // set alpha randomly
+        alphas[ i ] = Math.random();
+        sizes[ i ] = Math.random()*2;
+        
+        var vec3 = new THREE.Vector3();
+        vec3.x = THREE.Math.randFloatSpread(1);
+        vec3.y = THREE.Math.randFloatSpread(1);
+        vec3.z = THREE.Math.randFloatSpread(1);
+        vec3.setLength(1.0);
+        positions[i*3+0]  = vec3.x;
+        positions[i*3+1]  = vec3.y;
+        positions[i*3+2]  = vec3.z;
+
+    }
+    sphere.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
+    sphere.setAttribute( 'size', new THREE.BufferAttribute( sizes, 1 ) );
+    sphere.setAttribute( 'position', new THREE.BufferAttribute(positions, 3 ) );
+
+    // sphere.setAttribute( 'origPosition', new THREE.BufferAttribute(positions, 3) );
+    let sphere_points = new THREE.Points(sphere, sphere_shaderMaterial);
+    sphereGroup.add(sphere_points);
+    sphere_points.scale.set(5.0,5.0,5.0);
+
+    let sphereGrow = new TWEEN.Tween(sphere_points.scale)
+      .to({x:1.0,y:1.0,z:1.0}, animationDuration - 2000)
+
+    let sphereShrink = new TWEEN.Tween(sphere_points.scale)
+      .to({x:0.01,y:0.01,z:0.01}, 1000)
+      .easing(TWEEN.Easing.Exponential.Out);
+    let sphereExplode = new TWEEN.Tween(sphere_points.scale)
+      .to({x:8.0,y:8.0,z:8.0}, 2000)
+      .easing(TWEEN.Easing.Exponential.Out);
+
+    let sphereRotate = new TWEEN.Tween(sphere_points.rotation)
+      .to({y: -6*Math.PI}, animationDuration);
+
+    sphereGrow.chain(sphereShrink);
+    sphereShrink.chain(sphereExplode);
+    sphereGrow.start();
+    sphereRotate.start();
+}
+
+let maxPos = [];
 function makeLogo(){
     
-
     logoTotalPointCount = logoAllPoints.length/3;
 
     const alphas = new Float32Array( logoTotalPointCount * 1 ); // 1 values per vertex
@@ -419,8 +556,11 @@ function makeLogo(){
         positions[i*3+0]  = vec3.x;
         positions[i*3+1]  = vec3.y;
         positions[i*3+2]  = vec3.z;
+
     }
 
+    maxPos = positions;
+    // logopt_org_positions = positions;
     // console.log(positions);
 
     vbLogo.setAttribute( 'alpha', new THREE.BufferAttribute( alphas, 1 ) );
@@ -428,20 +568,45 @@ function makeLogo(){
     vbLogo.setAttribute( 'position', new THREE.BufferAttribute(positions, 3 ) );
     
     vbLogo.setAttribute( 'targetPosition', new THREE.BufferAttribute( new Float32Array(logoAllPoints), 3 ) );
-    
+    // vbLogo.setAttribute( 'origPosition', new THREE.BufferAttribute(positions, 3) );
 
     logo_points = new THREE.Points(vbLogo, logo_shaderMaterial);
     vbLogo.center();
     // vbLogo.postion.y = 1;
+   
+    smokeParticles.scale.set(1.2,1.2,1.2); //0.1
     smokeParticles.add( logo_points );    
     sphereGroup.add(smokeParticles);
-    smokeParticles.scale.set(0.8,0.8,0.8);
-    smokeParticles.position.y = 1.0;
-    console.log(vbLogo);
+
+    let vbLogoScaleIn = new TWEEN.Tween(smokeParticles.scale)
+      .to({x:0.01,y:0.01,z:0.01}, animationDuration - 2000);
+
+    let vbLogoScaleSet = new TWEEN.Tween(smokeParticles.scale)
+      .to({x:1.0,y:1.0,z:1.0}, 1000);
+
+    vbLogoScaleIn.chain(vbLogoScaleSet);
+
+    let vbLogoRotate = new TWEEN.Tween(smokeParticles.rotation)
+      .to({y: 4*Math.PI}, animationDuration - 3000);
+
+    // if ( time<durationSeconds ){
+    //   smokeParticles.rotation.y = 0.1 * time;
+    // }else if (time > durationSeconds + 0.5){
+    //   smokeParticles.rotation.y = 0;
+    // }
+
+    // vbLogoScaleIn.chain(vbLogoShrink);
+    // vbLogoShrink.chain(vbLogoExplode);
+    vbLogoScaleIn.start();
+    vbLogoRotate.start();
+
+
+    // console.log(vbLogo);
 
 }
 
 let simplex = new FastSimplexNoise();
+
 function animateLogo(time){
 
     logo_shaderMaterial.uniforms.elapsedTime.value = time;
@@ -451,99 +616,128 @@ function animateLogo(time){
     const logopt_alphas = vbLogo.attributes.alpha;   
     const logopt_sizes = vbLogo.attributes.size;
     const logopt_positions = vbLogo.attributes.position;
+    
+
     const logopt_next_positions = vbLogo.attributes.targetPosition;
     
     const count = logoTotalPointCount; 
       
-    let noiseScale = 0.6;
-    let noiseTime = time * 0.01;
-    let noiseVelocity = 0.01;
-    let k = 0.9;
+    let noiseScale = ((durationSeconds - time) / durationSeconds);
+    let noiseTime = noiseScale * 5.0; //* 0.001
+    let noiseVelocity = noiseScale * 0.01;
+    let k = noiseScale * 1.0;
 
-    let pos = logopt_positions.array;
- 
-    for( let j = 0; j < count; j ++ ) {
+    if(logopt_positions){
+
+
+      let pos = logopt_positions.array;
+   
+      for( let j = 0; j < count; j ++ ) {
+            
+        // dynamically change sizes
+        logopt_sizes.array[j] = 1.0 * ( 1 + Math.sin( 5 * j + time*10 ) );
+
+        if(true){
+
+          // pos[j] = Math.random();
+          let xScaled = pos[j * 3 + 0] * noiseScale; 
+          let yScaled = pos[j * 3 + 1] * noiseScale;
+          let zScaled = pos[j * 3 + 2] * noiseScale;
+
+          let noise1 = simplex.getRaw4DNoise(
+            xScaled,
+            yScaled,
+            zScaled,
+            noiseTime
+          )* k;
+
+          let noise2 = simplex.getRaw4DNoise(
+            xScaled,
+            yScaled,
+            zScaled,
+            noiseTime
+          )* k;
+
+          let noise3 = simplex.getRaw4DNoise(
+            xScaled,
+            yScaled,
+            zScaled,
+            noiseTime
+          )* k;
+
+          pos[j * 3 + 0] = maxPos[j * 3 + 0] - pos[j * 3 + 0] * Math.sin(noise1 * Math.PI) * noiseVelocity;
+          pos[j * 3 + 1] = maxPos[j * 3 + 1] - pos[j * 3 + 1] * Math.sin(noise2 * Math.PI) * noiseVelocity;
+          pos[j * 3 + 2] = maxPos[j * 3 + 2] - pos[j * 3 + 2] * Math.sin(noise3 * Math.PI) * noiseVelocity;
+          // pos[j * 3 + 0] = maxPos[j * 3 + 0]- pos[j * 3 + 0] * Math.sin(noise1 * Math.PI) * noiseVelocity ;
+          // pos[j * 3 + 1] = maxPos[j * 3 + 1]- pos[j * 3 + 1] * Math.sin(noise2 * Math.PI) * noiseVelocity ;
+          // pos[j * 3 + 2] = maxPos[j * 3 + 2]- pos[j * 3 + 2] * Math.sin(noise3 * Math.PI) * noiseVelocity ;
           
-      // dynamically change sizes
-      logopt_sizes.array[j] = 1.0 * ( 1 + Math.sin( 5 * j + time*10 ) );
+        }else{
+          // logopt_positions = vbLogo.attributes.origPosition;
+        }
+      }//endfor
 
-      // if(time>10){
-      //   // pos[j * 3 + 0] = logopt_next_positions.array[j * 3 + 0] ;
-      //   // pos[j * 3 + 1] = logopt_next_positions.array[j * 3 + 1] ;
-      //   // pos[j * 3 + 2] = logopt_next_positions.array[j * 3 + 2] ;
-      // }else{
-
-        // pos[j] = Math.random();
-        let xScaled = pos[j * 3 + 0] * noiseScale; 
-        let yScaled = pos[j * 3 + 1] * noiseScale;
-        let zScaled = pos[j * 3 + 2] * noiseScale;
-
-        let noise1 = simplex.getRaw4DNoise(
-          xScaled,
-          yScaled,
-          zScaled,
-          noiseTime
-        )* k;
-
-        let noise2 = simplex.getRaw4DNoise(
-          xScaled + 1,
-          yScaled + 1,
-          zScaled + 1,
-          5+noiseTime
-        )* k;
-
-        let noise3 = simplex.getRaw4DNoise(
-          xScaled + 2,
-          yScaled + 2,
-          zScaled + 2,
-          10+noiseTime
-        )* k;
-
-
-        pos[j * 3 + 0] += Math.sin(noise1 * Math.PI) * noiseVelocity ;
-        pos[j * 3 + 1] += Math.sin(noise2 * Math.PI) * noiseVelocity ;
-        pos[j * 3 + 2] += Math.sin(noise3 * Math.PI) * noiseVelocity ;
-        
-      }
-
-    logopt_positions.needsUpdate = true;
-    logopt_sizes.needsUpdate = true;
+      logopt_positions.needsUpdate = true;
+      logopt_sizes.needsUpdate = true; 
+    }
   
-    
-    
 }
+
+
+function animateSphere(time){
+
+    const sphere_alphas = sphere.attributes.alpha;   
+    const sphere_sizes = sphere.attributes.size;
+    const sphere_positions = sphere.attributes.position;
+
+    const sphere_next_positions = sphere.attributes.targetPosition;
+    
+    const count = spherePtsCount; 
+
+    if(sphere_positions){
+
+      let pos = sphere_positions.array;
+   
+      for( let j = 0; j < count; j ++ ) {
+            
+        // dynamically change sizes
+        sphere_sizes.array[j] = 1.0 * ( 1 + Math.sin( 5 * j + time*10 ) );
+        // if (time > durationSeconds - 6 && time < durationSeconds - 1 ){
+        //   sphere_sizes.array[j] = sphere_sizes.array[j] * ( 1 + 0.001*time );
+        // }else{
+        //   sphere_sizes.array[j] = 1.0 * ( 1 + Math.sin( 5 * j + time*10 ) );
+        // }
+
+      }//endfor
+
+      // sphere_positions.needsUpdate = true;
+      sphere_sizes.needsUpdate = true; 
+    }
+  
+}
+
+
 
 
 
 // ADD ANIMATION
 
 function animateStars(){
-  starSystem.position.z += 0.4;
+  starSystem.position.z += 0.1;
 }
 
 function appearText(){
 
-  // console.log(lettersBase);
-  // lettersBase.children.forEach(l=>{
-  //   // let letteropacity = l.children[0].material.opacity;
-    
-  //   // l.children[0].material.opacity = 1.0;
-
-  //   let fadeinTxt = new TWEEN.Tween(l.children[0].material)
-  //   .to({opacity: 1.0}, 4000)
-  //   .repeat(1)
-  //   .yoyo(true)
-  //   .delay(100)
-  //   .repeatDelay(20000)
-  //   .start()
-
-  // });
-
   let rotateTxt = new TWEEN.Tween(lettersBase.rotation)
-    .to({y: lettersBase.rotation.y - 1.88*Math.PI}, animationDuration)
-    .start();
-   
+    .to({y: lettersBase.rotation.y - 1.0*Math.PI}, animationDuration)
+
+  rotateTxt.start();
+
+  setTimeout(function(){
+    sphereGroup.remove(lettersBase);
+  }, animationDuration);
 }
+
 function animateText(time){
   // console.log(time);
   for ( let i = 0; i < lettersBase.children.length; i ++ ) {
@@ -570,12 +764,13 @@ function animateText(time){
                   letter_alphas.array[j] = 0;
                 }
               }
-              letter_sizes.array[j] = 1.2 * ( 1 + Math.sin( 5 * j + time*10 ) );
-              // letter_positions.array[j] = time * Math.random() * 1000; 
+              letter_sizes.array[j] = 1.4 * ( 1 + Math.sin( 5 * j + time*10 ) );
+              // letter_positions.array[j] = 0;
           }
 
           letter_alphas.needsUpdate = true;
           letter_sizes.needsUpdate = true;
+          // letter_positions.needsUpdate = true;
           
         }
       }  
@@ -586,17 +781,15 @@ function animation() {
 
   setTimeout( function() {
       requestAnimationFrame(animation);
-
-  }, 1000 / 30 );
+  }, 1000 / 60 );
 
  
   let diff = (Date.now()-start)* 0.001; //seconds
         // console.log(clock);
-  // animateStars();
+  animateStars();
   animateText(diff);
- 
-  setTimeout(  animateLogo(diff),
-    2000);
+  animateLogo(diff);
+  animateSphere(diff);
 
   TWEEN.update();
   renderer.render(scene, camera);

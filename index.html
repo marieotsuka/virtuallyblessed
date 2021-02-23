@@ -124,15 +124,19 @@
 
 	void main(){
 
-	    float t = elapsedTime / (duration * 1.2);
+		vec3 newPosition = position;
+		float lag = duration + 3.0;
+		float start = duration - 3.0;
+		if(elapsedTime > start && elapsedTime < lag){
+			float t = (elapsedTime - start) / 6.0;
 
-	    float progress = exponentialInOut( t );
+			float progress = exponentialInOut( t );
 
-	    vec3 delta = targetPosition - position;
+			vec3 delta = targetPosition - position;
 
-	   	vec3 newPosition = position + delta * progress;
-
-		if(elapsedTime > duration){
+			newPosition = position + delta * progress;
+		}
+		else if(elapsedTime > lag){
 	    	newPosition = targetPosition;
 		}
 
@@ -164,7 +168,7 @@
       void main() {
           
           vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-          vAlpha = alpha + (mvPosition.z * 0.5);
+          vAlpha = alpha + (mvPosition.z * 0.8);
           gl_PointSize = size;
           gl_Position = projectionMatrix * mvPosition;
       }
