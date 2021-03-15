@@ -1,6 +1,7 @@
 import * as THREE from './lib/three.module.js';
 import { SVGLoader } from './lib/SVGLoader.js';
-
+import * as dat from './lib/dat.gui.module.js';
+const gui = new dat.GUI();
 
 //-----------------------
 // Initialize 
@@ -10,7 +11,7 @@ window.addEventListener('load', init, false);
 let scene, camera, renderer, container;
 let _width, _height;
 
-const durationSeconds = 30;
+const durationSeconds = 50;
 const animationDuration = durationSeconds*1000;
 
 const colors = [
@@ -27,13 +28,18 @@ function glowColor(){
 }
 
 let sphereGroup = new THREE.Group(); //everything related to orb
+let controls = new function(){
+  this.noise = 0.1;
+  this.time = 0.1;
+  this.velocity = 0.1;
+  this.k = 0.1;
+  this.scale = 0.3;
+};
 
 function init() {
   createWorld();
   
   createStars();
-
-  // createSmoke();
 
   createText();
   createLogo();
@@ -45,9 +51,18 @@ function init() {
   _lights.position.set(0,0,4);
   sphereGroup.add(_lights);
 
+  makeGUI(controls);
   animation();
 }
 
+function makeGUI( controlobj){
+  const gui = new dat.GUI();
+  gui.add(controlobj, 'noise', 0.001, 2.0);
+  gui.add(controlobj, 'time', 0.001, 2.0);
+  gui.add(controlobj, 'velocity', 0.001, 2.0);
+  gui.add(controlobj, 'k', 0.001, 2.0);
+  gui.add(controlobj, 'scale', 0.01, 3.0);
+}
 
 function createWorld() {
   _width = window.innerWidth;
@@ -113,7 +128,7 @@ let star_points, star_materials = [];
 let starfield, parameters, i, h, color, size;
 let starCount = 4000;
 function createStars(){
-   
+
    starfield = new THREE.Geometry();
    
    for (i = 0; i < starCount; i++) {
@@ -308,7 +323,6 @@ function createText( ){
         letterPoints.position.z = radius;
         letterPoints.position.y = -maxHeight / 2;
 
-
         offset.add(letterMesh);
         letterMesh.position.z = radius;
         letterMesh.position.y = -maxHeight / 2;
@@ -318,7 +332,7 @@ function createText( ){
     
   });
 
-  setTimeout(appearText, 800);
+  setTimeout(appearText, 1500);
 }
 
 
@@ -402,7 +416,7 @@ function createLogo(){
             vertex.startPoint = vertex.clone();
             vertex.direction = vertex.clone().normalize();
             logo_vertices.push(vertex.x, vertex.y, vertex.z);
-            logoAllPoints.push(vertex.x*0.15 - 2.75, vertex.y*-0.15 + 2, vertex.z*0.15);
+            logoAllPoints.push(vertex.x*0.15 - 3.0, vertex.y*-0.15 + 2.5, vertex.z*0.15);
           });
 
           let logo_shape = new THREE.Mesh(logoPath_geometry, textMaterial);
@@ -412,15 +426,15 @@ function createLogo(){
       }
 
       
+
+
+      // //add in logo layer at end
       logo_layer.scale.set(.15, -.15, .15);
-      logo_layer.position.set(-2.75, 2, 0);
+      logo_layer.position.set(-3, 2.5, 0);
       
 
       let _logolights = new THREE.PointLight(0xFFFFFF, 1, 40);
       _logolights.position.set(0, -1, 2);
-
-
-      //add in logo layer at end
       
       sphereGroup.add(_logolights);
 
@@ -473,16 +487,36 @@ let sphere_shaderMaterial = new THREE.ShaderMaterial(
 });
 
 function makeExplosion(){
-    // let globe_geometry = new THREE.SphereGeometry( 1.0, 8, 8 );
 
-    // let globe_material = new THREE.MeshBasicMaterial( {
-    //   map: createCanvasMaterial('white', 5.0),
-    //   transparent: true,
-    //   blending: THREE.AdditiveBlending
-    // });
-    // var globe_mesh = new THREE.Mesh( globe_geometry, globe_material );
-    // sphereGroup.add( globe_mesh );
+    let glow_geo = new THREE.Geometry();
+    let v = new THREE.Vector3();
+    glow_geo.vertices.push(v);
+    let c = glowColor().getHexString();
 
+    let glow_mat = new THREE.PointsMaterial({
+      size: 1.0+Math.random(),
+      map: createCanvasMaterial('#'+c, 256),
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false
+    });
+    let glow = new THREE.Points( glow_geo, glow_mat);
+   
+    sphereGroup.add(glow);
+
+    let glowIn = new TWEEN.Tween(glow.material)
+      .to({size: 10, opacity: 0.5}, animationDuration - 1500);
+
+    let glowMax = new TWEEN.Tween(glow.material)
+      .to({size: 30, opacity: 1.0}, 1000);
+
+    let glowSet = new TWEEN.Tween(glow.material)
+      .to({size: 12, opacity: 0.6}, 1000);
+
+    glowIn.chain(glowMax);
+    glowMax.chain(glowSet);
+
+    glowIn.start();
 
 
     const alphas = new Float32Array( spherePtsCount * 1 ); // 1 values per vertex
@@ -510,26 +544,27 @@ function makeExplosion(){
 
     // sphere.setAttribute( 'origPosition', new THREE.BufferAttribute(positions, 3) );
     let sphere_points = new THREE.Points(sphere, sphere_shaderMaterial);
-    sphereGroup.add(sphere_points);
-    sphere_points.scale.set(5.0,5.0,5.0);
+    // sphereGroup.add(sphere_points);
 
-    let sphereGrow = new TWEEN.Tween(sphere_points.scale)
-      .to({x:1.0,y:1.0,z:1.0}, animationDuration - 2000)
+    sphere_points.scale.set(3.0,3.0,3.0);
 
-    let sphereShrink = new TWEEN.Tween(sphere_points.scale)
-      .to({x:0.01,y:0.01,z:0.01}, 1000)
-      .easing(TWEEN.Easing.Exponential.Out);
-    let sphereExplode = new TWEEN.Tween(sphere_points.scale)
-      .to({x:8.0,y:8.0,z:8.0}, 2000)
-      .easing(TWEEN.Easing.Exponential.Out);
+    // let sphereGrow = new TWEEN.Tween(sphere_points.scale)
+    //   .to({x:1.0,y:1.0,z:1.0}, animationDuration - 2000)
 
-    let sphereRotate = new TWEEN.Tween(sphere_points.rotation)
-      .to({y: -6*Math.PI}, animationDuration);
+    // let sphereShrink = new TWEEN.Tween(sphere_points.scale)
+    //   .to({x:0.01,y:0.01,z:0.01}, 1000)
+    //   .easing(TWEEN.Easing.Exponential.Out);
+    // let sphereExplode = new TWEEN.Tween(sphere_points.scale)
+    //   .to({x:8.0,y:8.0,z:8.0}, 2000)
+    //   .easing(TWEEN.Easing.Exponential.Out);
 
-    sphereGrow.chain(sphereShrink);
-    sphereShrink.chain(sphereExplode);
-    sphereGrow.start();
-    sphereRotate.start();
+    // let sphereRotate = new TWEEN.Tween(sphere_points.rotation)
+    //   .to({y: -6*Math.PI}, animationDuration);
+
+    // sphereGrow.chain(sphereShrink);
+    // sphereShrink.chain(sphereExplode);
+    // sphereGrow.start();
+    // sphereRotate.start();
 }
 
 let maxPos = [];
@@ -574,31 +609,26 @@ function makeLogo(){
     vbLogo.center();
     // vbLogo.postion.y = 1;
    
-    smokeParticles.scale.set(1.2,1.2,1.2); //0.1
+    smokeParticles.scale.set(0.3,0.3,0.3); //0.1
     smokeParticles.add( logo_points );    
     sphereGroup.add(smokeParticles);
 
-    let vbLogoScaleIn = new TWEEN.Tween(smokeParticles.scale)
-      .to({x:0.01,y:0.01,z:0.01}, animationDuration - 2000);
+    // let vbLogoScaleIn = new TWEEN.Tween(smokeParticles.scale)
+    //   .to({x:1.0,y:1.0,z:1.0}, animationDuration - 2000);
 
-    let vbLogoScaleSet = new TWEEN.Tween(smokeParticles.scale)
-      .to({x:1.0,y:1.0,z:1.0}, 1000);
+    // let vbLogoScaleMax = new TWEEN.Tween(smokeParticles.scale)
+    //   .to({x:3,y:3,z:3}, 300);
+    // let vbLogoScaleSet = new TWEEN.Tween(smokeParticles.scale)
+    //   .to({x:1.0,y:1.0,z:1.0}, 1000);
 
-    vbLogoScaleIn.chain(vbLogoScaleSet);
+    // vbLogoScaleIn.chain(vbLogoScaleMax);
+    // vbLogoScaleMax.chain(vbLogoScaleSet);
 
     let vbLogoRotate = new TWEEN.Tween(smokeParticles.rotation)
-      .to({y: 4*Math.PI}, animationDuration - 3000);
+      .to({y: 6*Math.PI}, animationDuration - 3000);
 
-    // if ( time<durationSeconds ){
-    //   smokeParticles.rotation.y = 0.1 * time;
-    // }else if (time > durationSeconds + 0.5){
-    //   smokeParticles.rotation.y = 0;
-    // }
-
-    // vbLogoScaleIn.chain(vbLogoShrink);
-    // vbLogoShrink.chain(vbLogoExplode);
-    vbLogoScaleIn.start();
-    vbLogoRotate.start();
+    // vbLogoScaleIn.start();
+    // vbLogoRotate.start();
 
 
     // console.log(vbLogo);
@@ -608,6 +638,8 @@ function makeLogo(){
 let simplex = new FastSimplexNoise();
 
 function animateLogo(time){
+
+    smokeParticles.scale.set(controls.scale, controls.scale, controls.scale);
 
     logo_shaderMaterial.uniforms.elapsedTime.value = time;
     logo_shaderMaterial.uniforms.duration.value = durationSeconds;
@@ -622,10 +654,10 @@ function animateLogo(time){
     
     const count = logoTotalPointCount; 
       
-    let noiseScale = ((durationSeconds - time) / durationSeconds);
-    let noiseTime = noiseScale * 5.0; //* 0.001
-    let noiseVelocity = noiseScale * 0.01;
-    let k = noiseScale * 1.0;
+    let noiseScale = controls.noise; //((durationSeconds - time) / durationSeconds)
+    let noiseTime = controls.time; //noiseScale * 2.0
+    let noiseVelocity = controls.velocity;
+    let k = controls.k;
 
     if(logopt_positions){
 
@@ -728,10 +760,14 @@ function animateStars(){
 
 function appearText(){
 
+  // let fadeInTxt = new TWEEN.Tween(lettersBase.material)
+  //   .to({opacity: 1.0}, 1000);
+
   let rotateTxt = new TWEEN.Tween(lettersBase.rotation)
     .to({y: lettersBase.rotation.y - 1.0*Math.PI}, animationDuration)
 
   rotateTxt.start();
+  // fadeInTxt.chain(rotateTxt);
 
   setTimeout(function(){
     sphereGroup.remove(lettersBase);
@@ -789,7 +825,7 @@ function animation() {
   animateStars();
   animateText(diff);
   animateLogo(diff);
-  animateSphere(diff);
+  // animateSphere(diff);
 
   TWEEN.update();
   renderer.render(scene, camera);

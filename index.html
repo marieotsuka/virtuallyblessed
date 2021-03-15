@@ -8,7 +8,7 @@
 
 </head>
 <body>
-
+	
 	<main>
 
 		<section id="overlay">
@@ -125,10 +125,10 @@
 	void main(){
 
 		vec3 newPosition = position;
-		float lag = duration + 3.0;
-		float start = duration - 3.0;
+		float lag = duration + 2.0;
+		float start = duration - 2.0;
 		if(elapsedTime > start && elapsedTime < lag){
-			float t = (elapsedTime - start) / 6.0;
+			float t = (elapsedTime - start) / 4.0;
 
 			float progress = exponentialInOut( t );
 
