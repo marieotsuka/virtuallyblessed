@@ -383,7 +383,7 @@ function createLogo(){
   // load a SVG resource
   loader.load(
     // resource URL
-    '/vb_logo.svg',
+    '../vb_logo.svg',
     // called when the resource is loaded
     function ( data ) {
       // console.log(data);
